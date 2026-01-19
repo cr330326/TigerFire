@@ -85,11 +85,12 @@ class WelcomeViewModel(
 }
 
 /**
- * 协程作用域接口
+ * 协程作用域
  *
  * 用于解耦 ViewModel 与具体的协程作用域实现
+ * 使用 expect/actual 机制在各平台实现
  */
-interface CoroutineScope {
+expect class CoroutineScope {
     /**
      * 在协程作用域中执行代码块
      *
