@@ -1,0 +1,66 @@
+-- GameProgress.sq
+-- 游戏进度表
+-- 存储用户的整体游戏进度状态
+
+CREATE TABLE GameProgress (
+    -- 主键，单行表设计，始终为 1
+    id INTEGER PRIMARY KEY DEFAULT 1,
+
+    -- 场景状态（JSON 序列化的 Map<SceneType, SceneStatus>）
+    -- 格式：{"FIRE_STATION":"UNLOCKED","SCHOOL":"LOCKED","FOREST":"LOCKED"}
+    sceneStatuses TEXT NOT NULL,
+
+    -- 消防站已完成学习的设备 ID 集合（JSON 数组）
+    -- 格式：["extinguisher","hydrant","ladder","hose"]
+    fireStationCompletedItems TEXT NOT NULL,
+
+    -- 森林场景已救援的小羊数量
+    forestRescuedSheep INTEGER NOT NULL DEFAULT 0,
+
+    -- 累计游玩时长（毫秒）
+    totalPlayTime INTEGER NOT NULL DEFAULT 0
+);
+
+-- 插入初始进度
+INSERT INTO GameProgress (id, sceneStatuses, fireStationCompletedItems, forestRescuedSheep, totalPlayTime)
+VALUES (1, '{"FIRE_STATION":"UNLOCKED","SCHOOL":"LOCKED","FOREST":"LOCKED"}', '[]', 0, 0);
+
+-- 获取游戏进度
+selectAllGameProgress:
+SELECT *
+FROM GameProgress
+WHERE id = 1;
+
+-- 更新场景状态
+updateSceneStatuses:
+UPDATE GameProgress
+SET sceneStatuses = ?
+WHERE id = 1;
+
+-- 更新消防站完成项
+updateFireStationCompletedItems:
+UPDATE GameProgress
+SET fireStationCompletedItems = ?
+WHERE id = 1;
+
+-- 更新森林救援小羊数量
+updateForestRescuedSheep:
+UPDATE GameProgress
+SET forestRescuedSheep = ?
+WHERE id = 1;
+
+-- 更新累计游玩时长
+updateTotalPlayTime:
+UPDATE GameProgress
+SET totalPlayTime = ?
+WHERE id = 1;
+
+-- 重置进度到初始状态
+resetProgress:
+UPDATE GameProgress
+SET
+    sceneStatuses = '{"FIRE_STATION":"UNLOCKED","SCHOOL":"LOCKED","FOREST":"LOCKED"}',
+    fireStationCompletedItems = '[]',
+    forestRescuedSheep = 0,
+    totalPlayTime = 0
+WHERE id = 1;

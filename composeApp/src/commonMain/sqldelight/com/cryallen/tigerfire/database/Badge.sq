@@ -1,0 +1,78 @@
+-- Badge.sq
+-- 徽章表
+-- 存储用户获得的所有徽章（包含变体）
+
+CREATE TABLE Badge (
+    -- 徽章唯一标识符（格式："baseType_vvariant"，如 "extinguisher_v0"）
+    id TEXT PRIMARY KEY,
+
+    -- 所属场景（SceneType 枚举值：FIRE_STATION, SCHOOL, FOREST）
+    scene TEXT NOT NULL,
+
+    -- 基础类型（如 "extinguisher", "hydrant", "ladder", "hose", "school", "sheep1", "sheep2"）
+    baseType TEXT NOT NULL,
+
+    -- 变体编号（0=默认, 1=红色, 2=黄色, 3=蓝色）
+    variant INTEGER NOT NULL DEFAULT 0,
+
+    -- 获得时间戳（毫秒）
+    earnedAt INTEGER NOT NULL
+);
+
+-- 创建索引：按场景查询徽章
+CREATE INDEX idx_badge_scene ON Badge(scene);
+
+-- 创建索引：按基础类型查询徽章
+CREATE INDEX idx_badge_baseType ON Badge(baseType);
+
+-- 插入新徽章
+insertBadge:
+INSERT INTO Badge(id, scene, baseType, variant, earnedAt)
+VALUES (?, ?, ?, ?, ?);
+
+-- 获取所有徽章
+selectAllBadges:
+SELECT *
+FROM Badge
+ORDER BY earnedAt DESC;
+
+-- 按场景获取徽章
+selectBadgesByScene:
+SELECT *
+FROM Badge
+WHERE scene = ?
+ORDER BY earnedAt DESC;
+
+-- 按基础类型获取徽章
+selectBadgesByBaseType:
+SELECT *
+FROM Badge
+WHERE baseType = ?
+ORDER BY earnedAt DESC;
+
+-- 获取指定基础类型的最新徽章
+selectLatestBadgeByBaseType:
+SELECT *
+FROM Badge
+WHERE baseType = ?
+ORDER BY earnedAt DESC
+LIMIT 1;
+
+-- 删除指定徽章
+deleteBadge:
+DELETE FROM Badge
+WHERE id = ?;
+
+-- 删除所有徽章
+deleteAllBadges:
+DELETE FROM Badge;
+
+-- 获取徽章总数
+countBadges:
+SELECT COUNT(*)
+FROM Badge;
+
+-- 获取不同基础类型的徽章数量
+countUniqueBadges:
+SELECT COUNT(DISTINCT baseType)
+FROM Badge;
