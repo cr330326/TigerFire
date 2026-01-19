@@ -1,0 +1,80 @@
+package com.cryallen.tigerfire.presentation.parent
+
+import com.cryallen.tigerfire.domain.model.ParentSettings
+import com.cryallen.tigerfire.domain.model.SceneStatus
+import com.cryallen.tigerfire.domain.model.SceneType
+
+/**
+ * 家长模式状态
+ *
+ * 表示家长模式页面的 UI 状态
+ */
+data class ParentState(
+    /**
+     * 家长设置（时间管理、使用限制等）
+     */
+    val settings: ParentSettings = ParentSettings(),
+
+    /**
+     * 今日使用时长（毫秒）
+     */
+    val todayPlayTime: Long = 0L,
+
+    /**
+     * 总使用时长（毫秒）
+     */
+    val totalPlayTime: Long = 0L,
+
+    /**
+     * 各场景的完成状态
+     */
+    val sceneStatuses: Map<SceneType, SceneStatus> = emptyMap(),
+
+    /**
+     * 已收集的徽章总数
+     */
+    val totalBadgeCount: Int = 0,
+
+    /**
+     * 是否显示重置确认对话框
+     */
+    val showResetConfirmation: Boolean = false,
+
+    /**
+     * 是否显示重新验证界面（敏感操作前）
+     */
+    val showReverification: Boolean = false,
+
+    /**
+     * 重新验证的数学题（问题文本 + 答案）
+     */
+    val reverificationQuestion: Pair<String, Int>? = null,
+
+    /**
+     * 当前正在执行的操作（需要重新验证）
+     */
+    val pendingAction: ParentAction? = null
+)
+
+/**
+ * 家长模式敏感操作
+ *
+ * 需要数学验证才能执行的操作
+ */
+enum class ParentAction {
+    /**
+     * 修改时间设置
+     */
+    UPDATE_TIME_SETTINGS,
+
+    /**
+     * 重置游戏进度
+     */
+
+    RESET_PROGRESS,
+
+    /**
+     * 清除使用统计
+     */
+    CLEAR_STATISTICS
+}
