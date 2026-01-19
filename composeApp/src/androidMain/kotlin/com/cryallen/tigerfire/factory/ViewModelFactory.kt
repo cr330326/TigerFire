@@ -3,8 +3,10 @@ package com.cryallen.tigerfire.factory
 import android.content.Context
 import com.cryallen.tigerfire.data.local.PlatformSqlDriver
 import com.cryallen.tigerfire.data.repository.ProgressRepositoryImpl
+import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.database.TigerFireDatabase
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
+import com.cryallen.tigerfire.presentation.firestation.FireStationViewModel
 import com.cryallen.tigerfire.presentation.map.MapViewModel
 import com.cryallen.tigerfire.presentation.welcome.CoroutineScope
 import com.cryallen.tigerfire.presentation.welcome.WelcomeViewModel
@@ -63,6 +65,18 @@ class ViewModelFactory(
         return MapViewModel(
             viewModelScope = coroutineScope,
             progressRepository = progressRepository
+        )
+    }
+
+    /**
+     * 创建 FireStationViewModel
+     */
+    fun createFireStationViewModel(): FireStationViewModel {
+        val resourcePathProvider = ResourcePathProvider()
+        return FireStationViewModel(
+            viewModelScope = coroutineScope,
+            progressRepository = progressRepository,
+            resourcePathProvider = resourcePathProvider
         )
     }
 

@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.cryallen.tigerfire.factory.ViewModelFactory
+import com.cryallen.tigerfire.ui.firestation.FireStationScreen
 import com.cryallen.tigerfire.ui.map.MapScreen
 import com.cryallen.tigerfire.ui.welcome.WelcomeScreen
 
@@ -59,11 +60,12 @@ fun AppNavigation(
 
         // 消防站
         composable(Route.FIRE_STATION) {
-            // TODO: FireStationScreen 将在 Task 4.4 中实现
-            // FireStationScreen(
-            //     viewModel = viewModel,
-            //     onNavigateBack = { navController.popBackStack() }
-            // )
+            val viewModel = remember { viewModelFactory.createFireStationViewModel() }
+
+            FireStationScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         // 学校
