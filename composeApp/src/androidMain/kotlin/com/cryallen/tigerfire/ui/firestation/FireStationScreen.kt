@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
@@ -111,7 +113,7 @@ fun FireStationScreen(
             // 顶部工具栏（返回按钮）
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
@@ -305,14 +307,12 @@ private fun DeviceCard(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.size(120.dp)
+            verticalArrangement = Arrangement.Center
         ) {
             // 设备图标
             Text(
                 text = getDeviceIcon(device),
-                fontSize = 48.sp,
-                modifier = Modifier.size(80.dp, 80.dp)
+                fontSize = 48.sp
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -378,12 +378,12 @@ private fun VideoPlayerOverlay(
             .background(Color.Black.copy(alpha = 0.9f)),
         contentAlignment = Alignment.Center
     ) {
-        // 视频播放器
+        // 视频播放器 - 使用响应式尺寸，占屏幕80%宽度，16:9宽高比
         VideoPlayer(
             videoPath = videoPath,
             modifier = Modifier
-                .width(320.dp)
-                .height(240.dp),
+                .fillMaxWidth(0.85f)
+                .padding(32.dp),
             onPlaybackCompleted = {
                 onPlaybackComplete(device)
             },
@@ -414,7 +414,8 @@ private fun BadgeAnimationOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.7f)),
+                .background(Color.Black.copy(alpha = 0.7f))
+                .clickable(onClick = onAnimationComplete), // 整个覆盖层可点击
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -443,14 +444,31 @@ private fun BadgeAnimationOverlay(
                     color = Color.Yellow
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
-                // 点击关闭
+                // 点击继续按钮
+                Box(
+                    modifier = Modifier
+                        .shadow(8.dp, CircleShape)
+                        .background(Color(0xFFFF6B6B), CircleShape)
+                        .size(120.dp, 50.dp)
+                        .clip(CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "继续",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
-                    text = "点击继续",
-                    fontSize = 18.sp,
-                    color = Color.White,
-                    modifier = Modifier.clickable(onClick = onAnimationComplete)
+                    text = "点击任意处继续",
+                    fontSize = 16.sp,
+                    color = Color.White.copy(alpha = 0.8f)
                 )
             }
         }

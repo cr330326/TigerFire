@@ -40,9 +40,16 @@ class ProgressRepositoryImpl(
             .map { gameProgressEntity ->
                 gameProgressEntity.toDomainModel()
             }
-            .onStart {
-                emit(GameProgress.initial())
-            }
+    }
+
+    /**
+     * 获取当前游戏进度（同步，不通过 Flow）
+     * 用于需要立即获取最新数据的场景
+     */
+    fun getGameProgressNow(): GameProgress {
+        return database.gameProgressQueries.selectAllGameProgress()
+            .executeAsOne()
+            .toDomainModel()
     }
 
     override suspend fun updateGameProgress(progress: GameProgress) {

@@ -60,22 +60,21 @@ class FireStationViewModel(
     // ==================== 初始化 ====================
 
     init {
-        // 订阅游戏进度，加载已完成的设备
+        // 订阅游戏进度，仅在初始化时加载已完成的设备
         viewModelScope.launch {
-            progressRepository.getGameProgress()
-                .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
-                .collect { progress ->
-                    val completedDevices = progress.fireStationCompletedItems
-                        .mapNotNull { deviceId ->
-                            FireStationDevice.entries.find { it.deviceId == deviceId }
-                        }
-                        .toSet()
+            val repository = progressRepository as? com.cryallen.tigerfire.data.repository.ProgressRepositoryImpl
+            val progress = repository?.getGameProgressNow() ?: progressRepository.getGameProgress().first()
 
-                    _state.value = _state.value.copy(
-                        completedDevices = completedDevices,
-                        isAllCompleted = completedDevices.size == FireStationDevice.ALL_DEVICES.size
-                    )
+            val completedDevices = progress.fireStationCompletedItems
+                .mapNotNull { deviceId ->
+                    FireStationDevice.entries.find { it.deviceId == deviceId }
                 }
+                .toSet()
+
+            _state.value = _state.value.copy(
+                completedDevices = completedDevices,
+                isAllCompleted = completedDevices.size == FireStationDevice.ALL_DEVICES.size
+            )
         }
 
         // 启动空闲检测（30秒无操作显示小火提示）
@@ -143,52 +142,69 @@ class FireStationViewModel(
     private fun handleVideoCompleted(device: FireStationDevice) {
         val currentState = _state.value
 
-        // 更新状态：结束播放
-        _state.value = currentState.copy(
-            isPlayingVideo = false,
-            currentPlayingDevice = null
-        )
-
         viewModelScope.launch {
-            // 获取当前进度
-            val progress = progressRepository.getGameProgress()
-                .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
-                .first()
+            // 使用同步方法直接从数据库获取最新进度
+            val repository = progressRepository as? com.cryallen.tigerfire.data.repository.ProgressRepositoryImpl
+            val progress = repository?.getGameProgressNow() ?: progressRepository.getGameProgress().first()
+
+            // 使用数据库状态作为基准，合并所有已完成的设备
+            val dbCompletedDevices = progress.fireStationCompletedItems
+                .mapNotNull { deviceId ->
+                    FireStationDevice.entries.find { it.deviceId == deviceId }
+                }
+                .toSet()
 
             // 检查设备是否已完成
-            if (!progress.fireStationCompletedItems.contains(device.deviceId)) {
-                // 首次完成，使用 GameProgress 辅助方法更新进度
-                var updatedProgress = progress.addFireStationCompletedItem(device.deviceId)
+            val alreadyCompletedInDB = device.deviceId in progress.fireStationCompletedItems
+            val alreadyCompletedLocal = device in currentState.completedDevices
+            val alreadyCompleted = alreadyCompletedInDB || alreadyCompletedLocal
 
-                // 检查是否全部完成，如果是则解锁学校场景
-                if (updatedProgress.isFireStationCompleted()) {
-                    updatedProgress = updatedProgress.updateSceneStatus(SceneType.SCHOOL, SceneStatus.UNLOCKED)
-                }
-
-                progressRepository.updateGameProgress(updatedProgress)
-
-                // 更新本地状态
-                val newCompletedDevices = currentState.completedDevices + device
-                val isAllCompleted = updatedProgress.isFireStationCompleted()
-
+            if (alreadyCompleted) {
+                // 已完成，只更新UI状态，不保存数据库
                 _state.value = currentState.copy(
-                    completedDevices = newCompletedDevices,
-                    isAllCompleted = isAllCompleted
+                    isPlayingVideo = false,
+                    currentPlayingDevice = null,
+                    completedDevices = dbCompletedDevices,
+                    isAllCompleted = progress.isFireStationCompleted(),
+                    showBadgeAnimation = false,
+                    earnedBadgeDevice = null
                 )
-
-                // 发送徽章动画副作用
-                sendEffect(FireStationEffect.ShowBadgeAnimation(device))
-                sendEffect(FireStationEffect.PlayBadgeSound)
-
-                // 如果全部完成，发送解锁学校场景和成功音效
-                if (isAllCompleted) {
-                    sendEffect(FireStationEffect.UnlockSchoolScene)
-                    sendEffect(FireStationEffect.PlayAllCompletedSound)
-                }
-            } else {
-                // 重复观看，不重复发放徽章
-                // 可以播放普通完成音效
+                return@launch
             }
+
+            // 首次完成，更新进度
+            val updatedProgress = progress.addFireStationCompletedItem(device.deviceId)
+            val newCompletedDevices = dbCompletedDevices + device
+            val isAllCompleted = updatedProgress.isFireStationCompleted()
+
+            // 检查是否全部完成，如果是则解锁学校场景
+            val finalProgress = if (isAllCompleted) {
+                updatedProgress.updateSceneStatus(SceneType.SCHOOL, SceneStatus.UNLOCKED)
+            } else {
+                updatedProgress
+            }
+
+            // 保存到数据库
+            progressRepository.updateGameProgress(finalProgress)
+
+            // 发送音效副作用
+            sendEffect(FireStationEffect.PlayBadgeSound)
+
+            // 如果全部完成，发送解锁学校场景和成功音效
+            if (isAllCompleted) {
+                sendEffect(FireStationEffect.UnlockSchoolScene)
+                sendEffect(FireStationEffect.PlayAllCompletedSound)
+            }
+
+            // 更新UI状态
+            _state.value = currentState.copy(
+                isPlayingVideo = false,
+                currentPlayingDevice = null,
+                completedDevices = newCompletedDevices,
+                isAllCompleted = isAllCompleted,
+                showBadgeAnimation = true,
+                earnedBadgeDevice = device
+            )
         }
     }
 

@@ -124,8 +124,8 @@ fun VideoPlayer(
             PlayerView(ctx).apply {
                 player = exoPlayer
                 useController = showControls
-                // 设置视频缩放模式（保持宽高比）
-                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                // 设置视频缩放模式为 ZOOM - 充满屏幕并保持宽高比
+                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             }
         },
         modifier = modifier
@@ -280,7 +280,8 @@ fun VideoPlayerWithState(
             PlayerView(ctx).apply {
                 player = exoPlayer
                 useController = false
-                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                // 设置视频缩放模式为 ZOOM - 充满屏幕并保持宽高比
+                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             }
         },
         modifier = modifier
