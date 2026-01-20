@@ -48,7 +48,7 @@ actual class ResourcePathProvider {
      * @return 资源完整路径，若不存在则返回 null
      */
     private fun getResourcePath(subpath: String, name: String, ext: String): String? {
-        val bundlePath = "$subpath/$name.$ext"
-        return NSBundle.mainBundle.pathForResource(bundlePath, ofType: null)
+        val bundlePath = "$subpath/$name"
+        return NSBundle.mainBundle.pathForResource(bundlePath, ofType = ext)
     }
 }

@@ -3,13 +3,12 @@ package com.cryallen.tigerfire.presentation.audio
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalInspectionMode
 import com.cryallen.tigerfire.domain.model.SceneType
-import platform.Foundation.*
 
 /**
  * iOS 音频管理器实现
  *
- * 使用 AVFoundation 播放音效和语音
- * 注意：这是简化实现，完整的音频播放需要在 Xcode 中配置
+ * 通过 expect/actual 模式调用 Swift 实现
+ * 使用 AVFoundation 框架，支持 AVAudioSession 多音频混音
  */
 class IosAudioManager : AudioManager {
 
@@ -27,82 +26,77 @@ class IosAudioManager : AudioManager {
         }
     }
 
-    // 音效资源映射
-    private fun getSoundResourceName(type: SoundType, scene: SceneType? = null): String {
-        return when (type) {
-            SoundType.CLICK -> when (scene) {
-                SceneType.FIRE_STATION -> "fire_click"
-                SceneType.SCHOOL -> "school_click"
-                SceneType.FOREST -> "forest_click"
-                null -> "click"
-            }
-            SoundType.SUCCESS -> "success"
-            SoundType.HINT -> "hint"
-            SoundType.DRAG -> "drag"
-            SoundType.SNAP -> "snap"
-            SoundType.BADGE -> "badge"
-            SoundType.ALL_COMPLETED -> "all_completed"
-            SoundType.ALERT -> "alert"
-            SoundType.VOICE -> "voice"
-        }
-    }
+    // ==================== 公开方法实现 ====================
 
     override fun playClickSound(scene: SceneType?) {
-        println("iOS Audio: Playing click sound for $scene")
-        // 实际音频播放需要在 Swift/ObjC 中实现
-        // 这里使用 NSLog 记录音频播放请求
-        NSLog("Play click sound: ${getSoundResourceName(SoundType.CLICK, scene)}")
+        val sceneValue = when (scene) {
+            SceneType.FIRE_STATION -> 0
+            SceneType.SCHOOL -> 1
+            SceneType.FOREST -> 2
+            null -> -1
+        }
+        IosAudioPlayerHelper.playClickSound(sceneValue)
     }
 
     override fun playVoice(voicePath: String) {
-        println("iOS Audio: Playing voice: $voicePath")
-        NSLog("Play voice: $voicePath")
+        IosAudioPlayerHelper.playVoice(voicePath)
     }
 
     override fun playSuccessSound() {
-        println("iOS Audio: Playing success sound")
-        NSLog("Play success sound")
+        IosAudioPlayerHelper.playSuccessSound()
     }
 
     override fun playHintSound() {
-        println("iOS Audio: Playing hint sound")
-        NSLog("Play hint sound")
+        IosAudioPlayerHelper.playHintSound()
     }
 
     override fun playDragSound() {
-        println("iOS Audio: Playing drag sound")
-        NSLog("Play drag sound")
+        IosAudioPlayerHelper.playDragSound()
     }
 
     override fun playSnapSound() {
-        println("iOS Audio: Playing snap sound")
-        NSLog("Play snap sound")
+        IosAudioPlayerHelper.playSnapSound()
     }
 
     override fun playBadgeSound() {
-        println("iOS Audio: Playing badge sound")
-        NSLog("Play badge sound")
+        IosAudioPlayerHelper.playBadgeSound()
     }
 
     override fun playAllCompletedSound() {
-        println("iOS Audio: Playing all completed sound")
-        NSLog("Play all completed sound")
+        IosAudioPlayerHelper.playAllCompletedSound()
     }
 
     override fun playAlertSound() {
-        println("iOS Audio: Playing alert sound (looping)")
-        NSLog("Play alert sound")
+        IosAudioPlayerHelper.playAlertSound()
     }
 
     override fun stopAlertSound() {
-        println("iOS Audio: Stopping alert sound")
-        NSLog("Stop alert sound")
+        IosAudioPlayerHelper.stopAlertSound()
     }
 
     override fun release() {
-        println("iOS Audio: Releasing audio resources")
-        NSLog("Release audio resources")
+        IosAudioPlayerHelper.release()
     }
+}
+
+/**
+ * iOS Audio Player Helper
+ *
+ * 通过 external 函数调用 Swift 实现
+ */
+internal object IosAudioPlayerHelper {
+
+    external fun playClickSound(sceneValue: Int)
+    external fun playVoice(voicePath: String)
+    external fun playSuccessSound()
+    external fun playHintSound()
+    external fun playDragSound()
+    external fun playSnapSound()
+    external fun playBadgeSound()
+    external fun playAllCompletedSound()
+    external fun playAlertSound()
+    external fun stopAlertSound()
+    external fun release()
 }
 
 /**
