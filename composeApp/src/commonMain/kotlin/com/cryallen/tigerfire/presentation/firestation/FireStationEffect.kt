@@ -51,4 +51,18 @@ sealed class FireStationEffect {
      * 解锁学校场景
      */
     data object UnlockSchoolScene : FireStationEffect()
+
+    /**
+     * 播放慢下来语音提示
+     *
+     * 当检测到快速点击时触发
+     */
+    data object PlaySlowDownVoice : FireStationEffect()
+
+    /**
+     * 显示空闲提示
+     *
+     * 无操作 30 秒后显示小火提示："需要帮忙吗？"
+     */
+    data object ShowIdleHint : FireStationEffect()
 }

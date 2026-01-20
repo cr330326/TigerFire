@@ -40,4 +40,18 @@ sealed class SchoolEffect {
      * 解锁森林场景
      */
     data object UnlockForestScene : SchoolEffect()
+
+    /**
+     * 播放慢下来语音提示
+     *
+     * 当检测到快速点击时触发
+     */
+    data object PlaySlowDownVoice : SchoolEffect()
+
+    /**
+     * 显示空闲提示
+     *
+     * 无操作 30 秒后显示小火提示："需要帮忙吗？"
+     */
+    data object ShowIdleHint : SchoolEffect()
 }

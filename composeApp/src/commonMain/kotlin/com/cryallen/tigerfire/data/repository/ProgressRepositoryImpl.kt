@@ -12,6 +12,7 @@ import com.cryallen.tigerfire.domain.repository.ProgressRepository
 import com.cryallen.tigerfire.database.TigerFireDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.serialization.encodeToString
@@ -62,38 +63,47 @@ class ProgressRepositoryImpl(
     override suspend fun resetProgress() {
         database.gameProgressQueries.resetProgress()
         database.badgeQueries.deleteAllBadges()
+        database.parentSettingsQueries.resetParentSettings()
     }
 
     // ==================== 家长设置相关 ====================
 
     override fun getParentSettings(): Flow<ParentSettings> {
-        // TODO: 实现家长设置表后完成
-        // 当前先返回默认设置
-        return kotlinx.coroutines.flow.flowOf(ParentSettings.default())
+        return database.parentSettingsQueries.selectAllParentSettings()
+            .asFlow()
+            .mapToOne(Dispatchers.Default)
+            .map { it.toDomainModel() }
+            .onStart { emit(ParentSettings.default()) }
     }
 
     override suspend fun updateParentSettings(settings: ParentSettings) {
-        // TODO: 实现家长设置表后完成
+        database.parentSettingsQueries.updateAllSettings(
+            sessionDurationMinutes = settings.sessionDurationMinutes.toLong(),
+            reminderMinutesBefore = settings.reminderMinutesBefore.toLong(),
+            dailyUsageStats = json.encodeToString(settings.dailyUsageStats)
+        )
     }
 
     // ==================== 使用统计相关 ====================
 
     override fun getDailyUsageStats(): Flow<Map<String, Long>> {
-        // TODO: 实现使用统计表后完成
-        return kotlinx.coroutines.flow.flowOf(emptyMap())
+        return getParentSettings().map { it.dailyUsageStats }
     }
 
     override suspend fun recordUsage(date: String, durationMillis: Long) {
-        // TODO: 实现使用统计表后完成
+        val currentSettings = getParentSettings().first()
+        val updatedSettings = currentSettings.recordUsage(date, durationMillis)
+        updateParentSettings(updatedSettings)
     }
 
     override fun getUsageForDate(date: String): Flow<Long> {
-        // TODO: 实现使用统计表后完成
-        return kotlinx.coroutines.flow.flowOf(0L)
+        return getDailyUsageStats().map { stats -> stats[date] ?: 0L }
     }
 
     override suspend fun clearUsageStats() {
-        // TODO: 实现使用统计表后完成
+        val currentSettings = getParentSettings().first()
+        val updatedSettings = currentSettings.clearUsageStats()
+        updateParentSettings(updatedSettings)
     }
 
     // ==================== 辅助方法 ====================
@@ -192,5 +202,27 @@ private fun parseCompletedItems(jsonString: String): Set<String> {
         json.decodeFromString<List<String>>(jsonString).toSet()
     } catch (e: Exception) {
         emptySet()
+    }
+}
+
+/**
+ * 将数据库实体转换为领域模型
+ */
+private fun com.cryallen.tigerfire.database.ParentSettings.toDomainModel(): ParentSettings {
+    return ParentSettings(
+        sessionDurationMinutes = sessionDurationMinutes.toInt(),
+        reminderMinutesBefore = reminderMinutesBefore.toInt(),
+        dailyUsageStats = parseDailyUsageStats(dailyUsageStats)
+    )
+}
+
+/**
+ * 解析每日使用统计 JSON 字符串
+ */
+private fun parseDailyUsageStats(jsonString: String): Map<String, Long> {
+    return try {
+        Json { ignoreUnknownKeys = true }.decodeFromString<Map<String, Long>>(jsonString)
+    } catch (e: Exception) {
+        emptyMap()
     }
 }

@@ -5,6 +5,8 @@ import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.SceneStatus
 import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
+import com.cryallen.tigerfire.presentation.common.IdleTimer
+import com.cryallen.tigerfire.presentation.common.RapidClickGuard
 import com.cryallen.tigerfire.presentation.welcome.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -39,6 +41,22 @@ class FireStationViewModel(
     private val _effect = Channel<FireStationEffect>()
     val effect: Flow<FireStationEffect> = _effect.receiveAsFlow()
 
+    // ==================== 辅助功能 ====================
+
+    /**
+     * 快速点击防护器
+     *
+     * 防止儿童疯狂点击设备按钮
+     */
+    private val rapidClickGuard = RapidClickGuard()
+
+    /**
+     * 空闲计时器
+     *
+     * 检测无操作超时，显示小火提示
+     */
+    private val idleTimer = IdleTimer(viewModelScope)
+
     // ==================== 初始化 ====================
 
     init {
@@ -58,6 +76,11 @@ class FireStationViewModel(
                         isAllCompleted = completedDevices.size == FireStationDevice.ALL_DEVICES.size
                     )
                 }
+        }
+
+        // 启动空闲检测（30秒无操作显示小火提示）
+        idleTimer.startIdleDetection {
+            onIdleTimeout()
         }
     }
 
@@ -83,6 +106,17 @@ class FireStationViewModel(
      * @param device 设备类型
      */
     private fun handleDeviceClicked(device: FireStationDevice) {
+        // 报告用户活动，重置空闲计时器
+        idleTimer.reportActivity()
+
+        // 检测快速点击
+        if (rapidClickGuard.checkClick()) {
+            // 触发防护：播放语音提示
+            sendEffect(FireStationEffect.PlaySlowDownVoice)
+            rapidClickGuard.reset()
+            return
+        }
+
         val currentState = _state.value
 
         // 无论是否已完成，都可以重新观看视频
@@ -162,7 +196,22 @@ class FireStationViewModel(
      * 处理返回主地图按钮点击
      */
     private fun handleBackToMap() {
+        // 报告用户活动
+        idleTimer.reportActivity()
+
+        // 停止空闲检测
+        idleTimer.stopIdleDetection()
+
         sendEffect(FireStationEffect.NavigateToMap)
+    }
+
+    /**
+     * 处理空闲超时
+     *
+     * 无操作 30 秒后触发，显示小火提示
+     */
+    private fun onIdleTimeout() {
+        sendEffect(FireStationEffect.ShowIdleHint)
     }
 
     /**

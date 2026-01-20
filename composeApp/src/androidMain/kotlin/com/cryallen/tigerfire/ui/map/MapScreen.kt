@@ -20,6 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +59,8 @@ fun MapScreen(
     onNavigateToSchool: () -> Unit = {},
     onNavigateToForest: () -> Unit = {},
     onNavigateToCollection: () -> Unit = {},
-    onNavigateToParent: () -> Unit = {}
+    onNavigateToParent: () -> Unit = {},
+    appSessionManager: com.cryallen.tigerfire.presentation.common.AppSessionManager? = null
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -195,6 +199,28 @@ fun MapScreen(
                 }
             )
         }
+
+        // 时间提醒对话框
+        appSessionManager?.let { sessionManager ->
+            val timeRemaining by sessionManager.timeRemaining.collectAsState()
+            var showTimeReminder by remember { mutableStateOf(false) }
+
+            // 检查是否应该显示时间提醒
+            if (sessionManager.shouldShowTimeReminder() && !showTimeReminder) {
+                showTimeReminder = true
+            }
+
+            if (showTimeReminder) {
+                val remainingMinutes = sessionManager.getRemainingMinutes()
+                TimeReminderDialog(
+                    remainingMinutes = remainingMinutes,
+                    onDismiss = {
+                        showTimeReminder = false
+                        // 标记提醒已显示，避免重复显示
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -326,6 +352,87 @@ private fun ParentVerificationDialog(
                     fontSize = 16.sp,
                     color = Color.Blue,
                     modifier = Modifier.clickable(onClick = onDismiss)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 时间提醒对话框
+ *
+ * 当会话时间即将到时（默认 2 分钟前）显示，提醒儿童剩余时间
+ *
+ * @param remainingMinutes 剩余分钟数
+ * @param onDismiss 关闭对话框回调
+ */
+@Composable
+fun TimeReminderDialog(
+    remainingMinutes: Int,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    Color(0xFFFFE4B5), // 温暖的米色背景
+                    shape = MaterialTheme.shapes.large
+                )
+                .padding(32.dp)
+                .shadow(16.dp, MaterialTheme.shapes.large)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 小火图标
+                Text(
+                    text = "🐯",
+                    fontSize = 64.sp
+                )
+
+                // 标题
+                Text(
+                    text = "时间快到啦！",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE63946) // 红色警告色
+                )
+
+                // 提示内容
+                Text(
+                    text = "还剩下 $remainingMinutes 分钟哦",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Text(
+                    text = "想再玩一会儿可以请爸爸妈妈帮忙设置~",
+                    fontSize = 18.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 确定按钮
+                Text(
+                    text = "我知道了",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier
+                        .clickable(onClick = onDismiss)
+                        .background(
+                            Color(0xFFE63946),
+                            shape = MaterialTheme.shapes.medium
+                        )
+                        .padding(horizontal = 32.dp, vertical = 12.dp)
                 )
             }
         }

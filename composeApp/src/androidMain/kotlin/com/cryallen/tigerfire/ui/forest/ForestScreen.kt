@@ -99,6 +99,15 @@ fun ForestScreen(
                     audioManager.playAllCompletedSound()
                 }
                 is ForestEffect.NavigateToMap -> onNavigateBack()
+                is ForestEffect.PlaySlowDownVoice -> {
+                    // 播放"慢一点"语音提示
+                    // TODO: 添加语音资源文件并取消注释
+                    // audioManager.playVoice("voice/slow_down.mp3")
+                }
+                is ForestEffect.ShowIdleHint -> {
+                    // 显示空闲提示：小火"需要帮忙吗？"
+                    // TODO: 实现 UI 提示显示逻辑
+                }
             }
         }
     }
@@ -276,12 +285,13 @@ private fun ForestGameArea(
 
         // "放下梯子"按钮（当靠近小羊时显示）
         if (state.showLowerLadderButton && state.nearbySheepIndex != null) {
+            val sheepIndex = state.nearbySheepIndex
             LowerLadderButton(
                 xRatio = state.helicopterX,
                 yRatio = state.helicopterY,
                 containerWidth = screenWidth,
                 containerHeight = screenHeight,
-                onClick = { onLowerLadderClick(state.nearbySheepIndex!!) }
+                onClick = { onLowerLadderClick(sheepIndex) }
             )
         }
     }

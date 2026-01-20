@@ -59,4 +59,18 @@ sealed class ForestEffect {
      * 显示完成提示（全部救援完成后）
      */
     data object ShowCompletionHint : ForestEffect()
+
+    /**
+     * 播放慢下来语音提示
+     *
+     * 当检测到快速点击时触发
+     */
+    data object PlaySlowDownVoice : ForestEffect()
+
+    /**
+     * 显示空闲提示
+     *
+     * 无操作 30 秒后显示小火提示："需要帮忙吗？"
+     */
+    data object ShowIdleHint : ForestEffect()
 }

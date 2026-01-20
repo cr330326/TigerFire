@@ -115,6 +115,15 @@ fun SchoolScreen(
                     audioManager.stopAlertSound()
                     onNavigateBack()
                 }
+                is SchoolEffect.PlaySlowDownVoice -> {
+                    // 播放"慢一点"语音提示
+                    // TODO: 添加语音资源文件并取消注释
+                    // audioManager.playVoice("voice/slow_down.mp3")
+                }
+                is SchoolEffect.ShowIdleHint -> {
+                    // 显示空闲提示：小火"需要帮忙吗？"
+                    // TODO: 实现 UI 提示显示逻辑
+                }
             }
         }
     }

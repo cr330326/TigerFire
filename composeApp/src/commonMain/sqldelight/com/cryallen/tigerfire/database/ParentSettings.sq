@@ -1,0 +1,65 @@
+-- ParentSettings.sq
+-- 家长设置表
+-- 存储家长模式的配置项和使用统计数据
+
+CREATE TABLE ParentSettings (
+    -- 主键，单行表设计，始终为 1
+    id INTEGER PRIMARY KEY DEFAULT 1,
+
+    -- 单次使用时长（分钟）
+    -- 可选值：5, 10, 15, 30
+    sessionDurationMinutes INTEGER NOT NULL DEFAULT 15,
+
+    -- 提前提醒时间（分钟）
+    reminderMinutesBefore INTEGER NOT NULL DEFAULT 2,
+
+    -- 每日使用统计（JSON 序列化的 Map<"yyyy-MM-dd", 毫秒>）
+    -- 格式：{"2025-01-15":900000,"2025-01-16":1800000}
+    dailyUsageStats TEXT NOT NULL DEFAULT '{}'
+);
+
+-- 插入默认设置
+INSERT INTO ParentSettings (id, sessionDurationMinutes, reminderMinutesBefore, dailyUsageStats)
+VALUES (1, 15, 2, '{}');
+
+-- 获取家长设置
+selectAllParentSettings:
+SELECT *
+FROM ParentSettings
+WHERE id = 1;
+
+-- 更新单次使用时长
+updateSessionDurationMinutes:
+UPDATE ParentSettings
+SET sessionDurationMinutes = ?
+WHERE id = 1;
+
+-- 更新提前提醒时间
+updateReminderMinutesBefore:
+UPDATE ParentSettings
+SET reminderMinutesBefore = ?
+WHERE id = 1;
+
+-- 更新每日使用统计
+updateDailyUsageStats:
+UPDATE ParentSettings
+SET dailyUsageStats = ?
+WHERE id = 1;
+
+-- 更新所有设置
+updateAllSettings:
+UPDATE ParentSettings
+SET
+    sessionDurationMinutes = ?,
+    reminderMinutesBefore = ?,
+    dailyUsageStats = ?
+WHERE id = 1;
+
+-- 重置为默认设置
+resetParentSettings:
+UPDATE ParentSettings
+SET
+    sessionDurationMinutes = 15,
+    reminderMinutesBefore = 2,
+    dailyUsageStats = '{}'
+WHERE id = 1;

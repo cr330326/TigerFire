@@ -7,6 +7,7 @@ import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.database.TigerFireDatabase
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
 import com.cryallen.tigerfire.presentation.collection.CollectionViewModel
+import com.cryallen.tigerfire.presentation.common.AppSessionManager
 import com.cryallen.tigerfire.presentation.firestation.FireStationViewModel
 import com.cryallen.tigerfire.presentation.forest.ForestViewModel
 import com.cryallen.tigerfire.presentation.map.MapViewModel
@@ -140,5 +141,25 @@ class ViewModelFactory(
      */
     fun createCoroutineScope(): CoroutineScope {
         return coroutineScope
+    }
+
+    /**
+     * 获取全局应用会话管理器
+     */
+    fun getAppSessionManager(): AppSessionManager {
+        return AppSessionManager.getInstance(
+            scope = coroutineScope,
+            progressRepository = progressRepository
+        )
+    }
+
+    /**
+     * 释放资源
+     *
+     * 应在应用退出时调用
+     */
+    fun release() {
+        // 关闭数据库连接
+        sqlDriver.close()
     }
 }

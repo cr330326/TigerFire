@@ -5,6 +5,9 @@ import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.SceneStatus
 import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
+import com.cryallen.tigerfire.presentation.common.IdleTimer
+import com.cryallen.tigerfire.presentation.common.PlatformDateTime
+import com.cryallen.tigerfire.presentation.common.RapidClickGuard
 import com.cryallen.tigerfire.presentation.welcome.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -60,6 +63,22 @@ class ForestViewModel(
     private val _effect = Channel<ForestEffect>()
     val effect: Flow<ForestEffect> = _effect.receiveAsFlow()
 
+    // ==================== 辅助功能 ====================
+
+    /**
+     * 快速点击防护器
+     *
+     * 防止儿童疯狂点击按钮
+     */
+    private val rapidClickGuard = RapidClickGuard()
+
+    /**
+     * 空闲计时器
+     *
+     * 检测无操作超时，显示小火提示
+     */
+    private val idleTimer = IdleTimer(viewModelScope)
+
     // ==================== 初始化 ====================
 
     init {
@@ -76,6 +95,11 @@ class ForestViewModel(
                         isAllCompleted = rescuedCount >= TOTAL_SHEEP
                     )
                 }
+        }
+
+        // 启动空闲检测（30秒无操作显示小火提示）
+        idleTimer.startIdleDetection {
+            onIdleTimeout()
         }
     }
 
@@ -102,6 +126,9 @@ class ForestViewModel(
      * 处理开始拖拽直升机
      */
     private fun handleDragStarted() {
+        // 报告用户活动，重置空闲计时器
+        idleTimer.reportActivity()
+
         _state.value = _state.value.copy(
             isDraggingHelicopter = true
         )
@@ -162,6 +189,17 @@ class ForestViewModel(
      * @param sheepIndex 小羊索引
      */
     private fun handleLowerLadderClicked(sheepIndex: Int) {
+        // 报告用户活动，重置空闲计时器
+        idleTimer.reportActivity()
+
+        // 检测快速点击
+        if (rapidClickGuard.checkClick()) {
+            // 触发防护：播放语音提示
+            sendEffect(ForestEffect.PlaySlowDownVoice)
+            rapidClickGuard.reset()
+            return
+        }
+
         val currentState = _state.value
 
         // 获取救援视频路径
@@ -205,11 +243,11 @@ class ForestViewModel(
 
                 // 添加森林徽章
                 val sheepBadge = Badge(
-                    id = "${FOREST_BADGE_BASE_TYPE}_${sheepIndex}_${System.currentTimeMillis()}",
+                    id = "${FOREST_BADGE_BASE_TYPE}_${sheepIndex}_${PlatformDateTime.getCurrentTimeMillis()}",
                     baseType = FOREST_BADGE_BASE_TYPE,
                     scene = SceneType.FOREST,
                     variant = sheepIndex,
-                    earnedAt = System.currentTimeMillis()
+                    earnedAt = PlatformDateTime.getCurrentTimeMillis()
                 )
 
                 val updatedProgressWithBadge = updatedProgress.addBadge(sheepBadge)
@@ -252,7 +290,22 @@ class ForestViewModel(
      * 处理返回主地图按钮点击
      */
     private fun handleBackToMap() {
+        // 报告用户活动
+        idleTimer.reportActivity()
+
+        // 停止空闲检测
+        idleTimer.stopIdleDetection()
+
         sendEffect(ForestEffect.NavigateToMap)
+    }
+
+    /**
+     * 处理空闲超时
+     *
+     * 无操作 30 秒后触发，显示小火提示
+     */
+    private fun onIdleTimeout() {
+        sendEffect(ForestEffect.ShowIdleHint)
     }
 
     /**

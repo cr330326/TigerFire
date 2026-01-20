@@ -22,13 +22,13 @@ import com.cryallen.tigerfire.ui.welcome.WelcomeScreen
  * 使用 Jetpack Compose Navigation 实现页面导航
  *
  * @param navController 导航控制器
+ * @param viewModelFactory ViewModel 工厂（从外部传入）
  */
 @Composable
 fun AppNavigation(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    viewModelFactory: ViewModelFactory
 ) {
-    val context = LocalContext.current
-    val viewModelFactory = remember { ViewModelFactory(context) }
 
     NavHost(
         navController = navController,
@@ -51,6 +51,7 @@ fun AppNavigation(
         // 主地图
         composable(Route.MAP) {
             val viewModel = remember { viewModelFactory.createMapViewModel() }
+            val appSessionManager = remember { viewModelFactory.getAppSessionManager() }
 
             MapScreen(
                 viewModel = viewModel,
@@ -58,7 +59,8 @@ fun AppNavigation(
                 onNavigateToSchool = { navController.navigate(Route.SCHOOL) },
                 onNavigateToForest = { navController.navigate(Route.FOREST) },
                 onNavigateToCollection = { navController.navigate(Route.COLLECTION) },
-                onNavigateToParent = { navController.navigate(Route.PARENT) }
+                onNavigateToParent = { navController.navigate(Route.PARENT) },
+                appSessionManager = appSessionManager
             )
         }
 
