@@ -6,8 +6,12 @@ import com.cryallen.tigerfire.data.repository.ProgressRepositoryImpl
 import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.database.TigerFireDatabase
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
+import com.cryallen.tigerfire.presentation.collection.CollectionViewModel
 import com.cryallen.tigerfire.presentation.firestation.FireStationViewModel
+import com.cryallen.tigerfire.presentation.forest.ForestViewModel
 import com.cryallen.tigerfire.presentation.map.MapViewModel
+import com.cryallen.tigerfire.presentation.parent.ParentViewModel
+import com.cryallen.tigerfire.presentation.school.SchoolViewModel
 import com.cryallen.tigerfire.presentation.welcome.CoroutineScope
 import com.cryallen.tigerfire.presentation.welcome.WelcomeViewModel
 
@@ -77,6 +81,50 @@ class ViewModelFactory(
             viewModelScope = coroutineScope,
             progressRepository = progressRepository,
             resourcePathProvider = resourcePathProvider
+        )
+    }
+
+    /**
+     * 创建 SchoolViewModel
+     */
+    fun createSchoolViewModel(): SchoolViewModel {
+        val resourcePathProvider = ResourcePathProvider()
+        return SchoolViewModel(
+            viewModelScope = coroutineScope,
+            progressRepository = progressRepository,
+            resourcePathProvider = resourcePathProvider
+        )
+    }
+
+    /**
+     * 创建 ForestViewModel
+     */
+    fun createForestViewModel(): ForestViewModel {
+        val resourcePathProvider = ResourcePathProvider()
+        return ForestViewModel(
+            viewModelScope = coroutineScope,
+            progressRepository = progressRepository,
+            resourcePathProvider = resourcePathProvider
+        )
+    }
+
+    /**
+     * 创建 CollectionViewModel
+     */
+    fun createCollectionViewModel(): CollectionViewModel {
+        return CollectionViewModel(
+            viewModelScope = coroutineScope,
+            progressRepository = progressRepository
+        )
+    }
+
+    /**
+     * 创建 ParentViewModel
+     */
+    fun createParentViewModel(): ParentViewModel {
+        return ParentViewModel(
+            viewModelScope = coroutineScope,
+            progressRepository = progressRepository
         )
     }
 

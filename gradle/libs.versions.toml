@@ -17,6 +17,10 @@ kotlin = "2.3.0"
 kotlinx-coroutines = "1.10.1"
 kotlinx-serialization = "1.8.0"
 sqldelight = "2.1.0"
+# Lottie 动画
+lottie = "6.6.2"
+# ExoPlayer 视频播放
+exoplayer = "1.5.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -37,6 +41,11 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
 sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "sqldelight" }
 sqldelight-coroutines-extensions = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
+# Lottie 动画库
+lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
+# ExoPlayer 媒体库（Media3）
+exoplayer-ui = { module = "androidx.media3:media3-ui", version.ref = "exoplayer" }
+exoplayer-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "exoplayer" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

@@ -8,8 +8,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.cryallen.tigerfire.factory.ViewModelFactory
+import com.cryallen.tigerfire.ui.collection.CollectionScreen
 import com.cryallen.tigerfire.ui.firestation.FireStationScreen
+import com.cryallen.tigerfire.ui.forest.ForestScreen
 import com.cryallen.tigerfire.ui.map.MapScreen
+import com.cryallen.tigerfire.ui.parent.ParentScreen
+import com.cryallen.tigerfire.ui.school.SchoolScreen
 import com.cryallen.tigerfire.ui.welcome.WelcomeScreen
 
 /**
@@ -70,38 +74,42 @@ fun AppNavigation(
 
         // 学校
         composable(Route.SCHOOL) {
-            // TODO: SchoolScreen 将在 Task 4.5 中实现
-            // SchoolScreen(
-            //     viewModel = viewModel,
-            //     onNavigateBack = { navController.popBackStack() }
-            // )
+            val viewModel = remember { viewModelFactory.createSchoolViewModel() }
+
+            SchoolScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         // 森林
         composable(Route.FOREST) {
-            // TODO: ForestScreen 将在 Task 4.6 中实现
-            // ForestScreen(
-            //     viewModel = viewModel,
-            //     onNavigateBack = { navController.popBackStack() }
-            // )
+            val viewModel = remember { viewModelFactory.createForestViewModel() }
+
+            ForestScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         // 我的收藏
         composable(Route.COLLECTION) {
-            // TODO: CollectionScreen 将在 Task 4.7 中实现
-            // CollectionScreen(
-            //     viewModel = viewModel,
-            //     onNavigateBack = { navController.popBackStack() }
-            // )
+            val viewModel = remember { viewModelFactory.createCollectionViewModel() }
+
+            CollectionScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         // 家长模式
         composable(Route.PARENT) {
-            // TODO: ParentScreen 将在 Task 4.8 中实现
-            // ParentScreen(
-            //     viewModel = viewModel,
-            //     onNavigateBack = { navController.popBackStack() }
-            // )
+            val viewModel = remember { viewModelFactory.createParentViewModel() }
+
+            ParentScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

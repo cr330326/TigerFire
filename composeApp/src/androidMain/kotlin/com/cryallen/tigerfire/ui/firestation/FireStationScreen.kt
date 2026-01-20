@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.cryallen.tigerfire.component.VideoPlayer
+import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.presentation.firestation.FireStationDevice
 import com.cryallen.tigerfire.presentation.firestation.FireStationEffect
 import com.cryallen.tigerfire.presentation.firestation.FireStationEvent
@@ -57,23 +61,28 @@ fun FireStationScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val audioManager = remember { context.getAudioManager() }
 
     // 订阅副作用（Effect）
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is FireStationEffect.PlayVideo -> {
-                    // TODO: Task 4.10 实现 VideoPlayer 后播放视频
-                    // videoPlayer.play(effect.videoResource)
+                    // VideoPlayer 由状态驱动，无需额外处理
                 }
                 is FireStationEffect.NavigateToMap -> onNavigateBack()
                 is FireStationEffect.ShowBadgeAnimation -> {
                     // 徽章动画在 showBadgeAnimation 状态中处理
                 }
-                is FireStationEffect.PlayClickSound,
-                is FireStationEffect.PlayBadgeSound,
+                is FireStationEffect.PlayClickSound -> {
+                    audioManager.playClickSound(com.cryallen.tigerfire.domain.model.SceneType.FIRE_STATION)
+                }
+                is FireStationEffect.PlayBadgeSound -> {
+                    audioManager.playBadgeSound()
+                }
                 is FireStationEffect.PlayAllCompletedSound -> {
-                    // TODO: Task 4.9/4.10 中集成音效播放
+                    audioManager.playAllCompletedSound()
                 }
                 is FireStationEffect.UnlockSchoolScene -> {
                     // 学校场景已解锁，在进度中自动处理
@@ -333,7 +342,9 @@ private fun getDeviceIcon(device: FireStationDevice): String {
 }
 
 /**
- * 视频播放覆盖层（占位符）
+ * 视频播放覆盖层
+ *
+ * 使用 VideoPlayer 组件播放教学视频
  *
  * @param device 当前播放的设备
  * @param onPlaybackComplete 播放完成回调
@@ -343,50 +354,33 @@ private fun VideoPlayerOverlay(
     device: FireStationDevice?,
     onPlaybackComplete: (FireStationDevice) -> Unit
 ) {
+    // 设备对应的视频文件路径
+    val videoPath = when (device) {
+        FireStationDevice.FIRE_HYDRANT -> "videos/firehydrant_cartoon.mp4"
+        FireStationDevice.LADDER_TRUCK -> "videos/fireladder_truck_cartoon.mp4"
+        FireStationDevice.FIRE_EXTINGUISHER -> "videos/firefighter_cartoon.mp4"
+        FireStationDevice.WATER_HOSE -> "videos/firenozzle_cartoon.mp4"
+        null -> return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f)),
+            .background(Color.Black.copy(alpha = 0.9f)),
         contentAlignment = Alignment.Center
     ) {
-        Box(
+        // 视频播放器
+        VideoPlayer(
+            videoPath = videoPath,
             modifier = Modifier
-                .size(280.dp, 200.dp)
-                .background(Color.White, shape = RoundedCornerShape(16.dp))
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "📹",
-                    fontSize = 64.sp
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "正在播放教学视频...",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = device?.displayName ?: "",
-                    fontSize = 16.sp,
-                    color = Color.Gray
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                // 模拟播放完成（实际视频完成后会自动调用）
-                Text(
-                    text = "播放中...",
-                    fontSize = 14.sp,
-                    color = Color.Blue,
-                    modifier = Modifier.clickable {
-                        device?.let { onPlaybackComplete(it) }
-                    }
-                )
-            }
-        }
+                .width(320.dp)
+                .height(240.dp),
+            onPlaybackCompleted = {
+                device?.let { onPlaybackComplete(it) }
+            },
+            autoPlay = true,
+            showControls = false
+        )
     }
 }
 

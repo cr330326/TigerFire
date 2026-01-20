@@ -34,6 +34,11 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.navigation.compose)
             implementation(libs.sqldelight.android.driver)
+            // Lottie 动画
+            implementation(libs.lottie.compose)
+            // ExoPlayer 视频播放
+            implementation(libs.exoplayer.exoplayer)
+            implementation(libs.exoplayer.ui)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
