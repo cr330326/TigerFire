@@ -42,7 +42,7 @@ fun GameProgress.getUnlockProgressDescription(scene: SceneType): String {
         SceneType.SCHOOL -> {
             val completed = fireStationCompletedItems.size
             val total = GameProgress.FIRE_STATION_TOTAL_ITEMS
-            "完成消防站 $completed/$4 个设备后解锁"
+            "完成消防站 $completed/$total 个设备后解锁"
         }
         SceneType.FOREST -> {
             if (getSceneStatus(SceneType.SCHOOL) == SceneStatus.COMPLETED) {
