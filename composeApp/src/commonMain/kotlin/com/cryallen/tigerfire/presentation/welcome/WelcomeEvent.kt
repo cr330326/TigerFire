@@ -7,7 +7,7 @@ package com.cryallen.tigerfire.presentation.welcome
  */
 sealed class WelcomeEvent {
     /**
-     * Lottie 卡车入场动画完成
+     * 卡车入场动画完成
      */
     data object TruckAnimationCompleted : WelcomeEvent()
 
@@ -15,6 +15,11 @@ sealed class WelcomeEvent {
      * 小火挥手动画完成
      */
     data object WaveAnimationCompleted : WelcomeEvent()
+
+    /**
+     * 语音播放完成
+     */
+    data object VoicePlaybackCompleted : WelcomeEvent()
 
     /**
      * 用户点击屏幕

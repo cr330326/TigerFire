@@ -38,19 +38,25 @@ class WelcomeViewModel(
         when (event) {
             is WelcomeEvent.TruckAnimationCompleted -> handleTruckAnimationCompleted()
             is WelcomeEvent.WaveAnimationCompleted -> handleWaveAnimationCompleted()
+            is WelcomeEvent.VoicePlaybackCompleted -> handleVoicePlaybackCompleted()
             is WelcomeEvent.ScreenClicked -> handleScreenClicked()
         }
     }
 
     /**
      * 处理卡车入场动画完成
+     * 触发挥手动画和播放欢迎语音
      */
     private fun handleTruckAnimationCompleted() {
         _state.value = _state.value.copy(
-            isAnimationCompleted = true,
-            showWaveAnimation = true
+            isTruckAnimationCompleted = true,
+            showWaveAnimation = true,
+            isVoicePlaying = true
         )
+        // 触发挥手动画
         sendEffect(WelcomeEffect.PlayWaveAnimation)
+        // 播放欢迎语音
+        sendEffect(WelcomeEffect.PlayVoice("audio/voices/welcome_greeting.mp3"))
     }
 
     /**
@@ -63,11 +69,26 @@ class WelcomeViewModel(
     }
 
     /**
+     * 处理语音播放完成
+     * 启用屏幕点击响应
+     */
+    private fun handleVoicePlaybackCompleted() {
+        _state.value = _state.value.copy(
+            isVoicePlaying = false,
+            isClickEnabled = true
+        )
+    }
+
+    /**
      * 处理屏幕点击
+     * 仅当点击启用后才导航
      */
     private fun handleScreenClicked() {
-        // 无论动画是否完成，点击屏幕都导航到主地图
-        sendEffect(WelcomeEffect.NavigateToMap)
+        // 仅当点击启用后才导航到主地图
+        if (_state.value.isClickEnabled) {
+            sendEffect(WelcomeEffect.NavigateToMap)
+        }
+        // 如果点击未启用，忽略点击（静默失败）
     }
 
     // ==================== 辅助方法 ====================

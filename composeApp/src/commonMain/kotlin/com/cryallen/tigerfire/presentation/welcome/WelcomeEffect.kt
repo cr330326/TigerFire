@@ -13,6 +13,13 @@ sealed class WelcomeEffect {
     data object PlayWaveAnimation : WelcomeEffect()
 
     /**
+     * 播放欢迎语音
+     *
+     * @param audioPath 语音文件路径（相对于 assets 目录）
+     */
+    data class PlayVoice(val audioPath: String) : WelcomeEffect()
+
+    /**
      * 导航到主地图
      */
     data object NavigateToMap : WelcomeEffect()

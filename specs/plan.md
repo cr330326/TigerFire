@@ -6,8 +6,10 @@
 
 | 属性 | 值 |
 |------|-----|
-| **文档版本** | v1.0 |
+| **文档版本** | v1.1 |
 | **创建日期** | 2026-01-19 |
+| **更新日期** | 2026-01-21 |
+| **更新内容** | 完善启动页流程，增加语音播放、全屏点击、首次使用初始化逻辑
 | **适用范围** | 完整 App 功能实现 |
 | **技术栈** | Kotlin Multiplatform Mobile (KMM) |
 | **架构模式** | Clean Architecture + MVVM |
@@ -294,19 +296,113 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 
 ## 4. 核心业务流程说明
 
-### 4.1 启动页流程
+### 4.1 启动页流程（欢迎场景）
 
 **步骤**：
-1. App 启动 → 显示启动页界面
+1. App 启动 → 显示启动页界面（全屏布局，无状态栏）
 2. 自动播放 Lottie 动画（`anim_truck_enter.json`，3-5 秒）
-3. 播放鸣笛音效 + 背景音乐
-4. 动画结束 → 小火探头挥手（`anim_xiaohuo_wave.json`）
-5. 播放语音："HI！今天和我一起救火吧！"
-6. 屏幕全域可点击 → 导航至主地图
+   - 消防车从屏幕底部驶入
+   - 同时播放鸣笛音效（`sfx_truck_horn.mp3`）
+   - 轻快活泼背景音乐（`bgm_welcome.mp3`）开始播放
+3. 动画结束 → 小火探头挥手（`anim_xiaohuo_wave.json`）
+4. 播放语音（`voice_welcome_greeting.mp3`）："HI！今天和我一起救火吧！"
+   - 正常语速，带停顿（适配 3-6 岁儿童理解）
+5. 语音播放完毕后，屏幕全域可点击
+6. 用户点击屏幕任意位置 → 导航至主地图
+
+**首次使用处理**：
+- 首次启动时，自动初始化默认家长设置：
+  - `sessionDurationMinutes = 15`（默认 15 分钟）
+  - `reminderMinutesBefore = 2`（提前 2 分钟提醒）
+- 不显示任何引导提示，直接进入启动页动画流程
 
 **关键触发点**：
-- Lottie 动画完成回调 → 触发语音播放
-- 屏幕任意位置点击事件 → 导航事件发送
+- 卡车入场动画完成 → 触发挥手动画 + 语音播放
+- 语音播放完成 → 启用全屏点击响应
+- 屏幕任意位置点击 → 发送导航事件
+
+**主流启动页设计参考**：
+- **品牌展示 + 功能引导结合**：通过小火角色建立 IP 认知
+- **极简交互**：无按钮，全屏可点，降低 3-6 岁儿童操作门槛
+- **感官多维度反馈**：视觉（Lottie 动画）+ 听觉（音效 + 语音）+ 触觉（点击反馈）
+- **节奏控制**：总时长控制在 5-8 秒，避免儿童等待焦虑
+
+### 4.1.1 资源缺失降级方案
+
+**当前状态**：Lottie 动画资源尚未制作完成
+
+**降级实现**（参考主流做法）：
+
+1. **纯色背景 + Logo 方案**（最简化）：
+   ```kotlin
+   // Android Compose 代码示例
+   @Composable
+   fun WelcomeScreen(viewModel: WelcomeViewModel) {
+       val state by viewModel.state.collectAsState()
+
+       Box(
+           modifier = Modifier
+               .fillMaxSize()
+               .background(Color(0xFFE63946)) // 品牌红色背景
+               .clickable(enabled = state.isClickEnabled) {
+                   viewModel.onEvent(WelcomeEvent.ScreenClicked)
+               }
+       ) {
+           // 中心显示小火 Logo 或静态图
+           Image(
+               painter = painterResource(R.drawable.xiaohuo_logo),
+               contentDescription = null,
+               modifier = Modifier.align(Alignment.Center)
+           )
+
+           // 底部显示文字提示
+           if (state.isClickEnabled) {
+               Text(
+                   text = "点击屏幕开始游戏",
+                   color = Color.White,
+                   fontSize = 24.sp,
+                   modifier = Modifier.align(Alignment.BottomCenter)
+                       .padding(bottom = 80.dp)
+               )
+           }
+       }
+   }
+   ```
+
+2. **渐变背景 + 简单动画方案**（无 Lottie）：
+   ```kotlin
+   // 使用 Compose 内置动画替代 Lottie
+   val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+   val scale by infiniteTransition.animateFloat(
+       initialValue = 1f,
+       targetValue = 1.1f,
+       animationSpec = infiniteRepeatable(
+           animation = tween(1000, easing = FastOutSlowInEasing),
+          repeatMode = RepeatMode.Reverse
+       ), label = "scale"
+   )
+
+   // Logo 缩放动画模拟"呼吸"效果
+   Image(
+       painter = painterResource(R.drawable.xiaohuo_logo),
+       contentDescription = null,
+       modifier = Modifier
+           .scale(scale)
+           .align(Alignment.Center)
+   )
+   ```
+
+3. **完整 Lottie 方案**（资源就绪后）：
+   - 使用 `lottie-compose` 库
+   - 按上述完整流程实现
+   - 保留降级方案作为备用
+
+**渐进式实现建议**：
+```
+阶段 1（当前）：纯色背景 + Logo + 点击进入 → 快速验证导航流程
+阶段 2（资源就绪）：添加 Lottie 动画 → 完整启动页体验
+阶段 3（优化打磨）：添加音效 + 语音 → 多感官体验
+```
 
 ### 4.2 消防站学习流程
 

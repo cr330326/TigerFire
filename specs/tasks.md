@@ -6,8 +6,10 @@
 
 | 属性 | 值 |
 |------|-----|
-| **文档版本** | v1.0 |
+| **文档版本** | v1.1 |
 | **创建日期** | 2026-01-19 |
+| **更新日期** | 2026-01-21 |
+| **更新内容** | 完善启动页相关任务（3.1, 4.2, 5.2），增加语音播放、音效、全屏交互、降级策略说明
 | **基于方案** | plan.md v1.0 |
 | **遵循规范** | constitution.md > CLAUDE.md > plan.md > spec.md |
 
@@ -515,23 +517,36 @@
 | **产出物** | WelcomeViewModel.kt |
 
 **任务说明**：
-- 定义 `WelcomeState`（无额外状态，仅标记动画完成）
+- 定义 `WelcomeState`：
+  - `isTruckAnimationCompleted: Boolean`（卡车入场动画是否完成）
+  - `showWaveAnimation: Boolean`（是否显示挥手动画）
+  - `isVoicePlaying: Boolean`（语音是否正在播放）
+  - `isClickEnabled: Boolean`（是否启用点击响应）
 - 定义 `WelcomeEvent`：
-  - `AnimationCompleted`
-  - `ScreenClicked`
+  - `TruckAnimationCompleted`（卡车入场动画完成）
+  - `WaveAnimationCompleted`（挥手动画完成）
+  - `VoicePlaybackCompleted`（语音播放完成）
+  - `ScreenClicked`（用户点击屏幕）
 - 定义 `WelcomeEffect`：
-  - `NavigateToMap`
+  - `PlayWaveAnimation`（播放挥手动画）
+  - `PlayVoice(audioPath: String)`（播放欢迎语音）
+  - `NavigateToMap`（导航至主地图）
 - 实现 ViewModel：
-  - 监听动画完成事件
-  - 处理屏幕点击事件
-  - 发送导航 Effect
-- 验证：ViewModel 可正确响应事件并发送 Effect
+  - 卡车动画完成 → 触发挥手动画 + 语音播放
+  - 语音播放完成 → 启用点击响应
+  - 处理屏幕点击 → 发送导航事件
+- 验证：ViewModel 可正确管理启动页流程状态
 
 **新增文件**：
 - `shared/presentation/welcome/WelcomeViewModel.kt`
 - `shared/presentation/welcome/WelcomeState.kt`
 - `shared/presentation/welcome/WelcomeEvent.kt`
 - `shared/presentation/welcome/WelcomeEffect.kt`
+
+**说明**：
+- 语音资源路径：`voice_welcome_greeting.mp3`
+- 卡车动画：`anim_truck_enter.json`（3-5 秒）
+- 挥手动画：`anim_xiaohuo_wave.json`（2-3 秒）
 
 ---
 
@@ -803,14 +818,36 @@
 
 **任务说明**：
 - 创建 `@Composable fun WelcomeScreen(viewModel: WelcomeViewModel)`
-- 使用 `LottieAnimationPlayer` 播放 `anim_truck_enter.json`
-- 动画完成后播放 `anim_xiaohuo_wave.json`
-- 使用 `Modifier.clickable` 实现全屏点击
-- 订阅 `viewModel.effect` 处理导航
-- 验证：启动页动画可正常播放，点击可跳转
+- **全屏布局配置**：
+  - 使用 `WindowInsetsControllerCompat` 隐藏状态栏和导航栏
+  - 设置系统 UI 标志：`SYSTEM_UI_FLAG_FULLSCREEN` + `SYSTEM_UI_FLAG_HIDE_NAVIGATION`
+- **动画播放流程**：
+  1. 页面加载自动播放卡车入场动画（`anim_truck_enter.json`）
+  2. 卡车动画完成 → 播放挥手动画（`anim_xiaohuo_wave.json`）
+  3. 同时播放欢迎语音（`voice_welcome_greeting.mp3`）
+  4. 播放鸣笛音效（`sfx_truck_horn.mp3`）和背景音乐（`bgm_welcome.mp3`）
+- **交互处理**：
+  - 使用 `Modifier.clickable(enabled = state.isClickEnabled)` 实现全屏点击
+  - 仅当语音播放完成后才启用点击响应
+  - 点击发送 `WelcomeEvent.ScreenClicked` 事件
+- **Effect 处理**：
+  - 订阅 `viewModel.effect` 处理导航（`NavigateToMap`）
+  - 处理播放语音 Effect（`PlayVoice`）
+- **降级策略**：
+  - Lottie 加载失败（>3 秒）→ 显示静态替代图 + 自动进入
+  - 语音加载失败 → 静默跳过，不阻塞流程
+- 验证：启动页动画可正常播放，音效正常，语音播放完毕后点击可跳转
 
 **新增文件**：
 - `androidApp/src/main/java/com/tigertruck/ui/welcome/WelcomeScreen.kt`
+
+**资源文件准备**：
+- `assets/lottie/anim_truck_enter.json`（卡车入场动画）
+- `assets/lottie/anim_xiaohuo_wave.json`（小火挥手动画）
+- `assets/audio/sfx_truck_horn.mp3`（鸣笛音效）
+- `assets/audio/bgm_welcome.mp3`（背景音乐）
+- `assets/audio/voice_welcome_greeting.mp3`（欢迎语音）
+- `res/drawable/launcher_placeholder.xml`（降级静态图）
 
 ---
 
@@ -1050,15 +1087,37 @@
 
 **任务说明**：
 - 创建 `struct WelcomeView: View`
-- 使用 `LottieView` 播放 `anim_truck_enter.json`
-- 动画完成后播放 `anim_xiaohuo_wave.json`
-- 使用 `.contentShape(Rectangle())` + `.onTapGesture` 实现全屏点击
-- 创建 `WelcomeViewModelWrapper` 桥接 Shared ViewModel
-- 订阅 Effect 处理导航
-- 验证：启动页动画可正常播放，点击可跳转
+- **全屏布局配置**：
+  - 使用 `.statusBar(hidden: true)` 隐藏状态栏
+  - 设置 `.edgesIgnoringSafeArea(.all)` 全屏显示
+- **动画播放流程**：
+  1. 页面加载（`.onAppear`）自动播放卡车入场动画（`anim_truck_enter.json`）
+  2. 卡车动画完成 → 播放挥手动画（`anim_xiaohuo_wave.json`）
+  3. 同时播放欢迎语音（`voice_welcome_greeting.mp3`）
+  4. 播放鸣笛音效（`sfx_truck_horn.mp3`）和背景音乐（`bgm_welcome.mp3`）
+- **交互处理**：
+  - 使用 `.contentShape(Rectangle())` + `.onTapGesture` 实现全屏点击
+  - 仅当 `state.isClickEnabled` 为 true 时响应点击
+  - 点击发送 `WelcomeEvent.ScreenClicked` 事件
+- **ViewModel 桥接**：
+  - 创建 `WelcomeViewModelWrapper` 桥接 Shared ViewModel
+  - 订阅 Effect 处理导航（`NavigateToMap`）
+  - 处理播放语音 Effect（`PlayVoice`）
+- **降级策略**：
+  - Lottie 加载失败（>3 秒）→ 显示静态替代图 + 自动进入
+  - 语音加载失败 → 静默跳过，不阻塞流程
+- 验证：启动页动画可正常播放，音效正常，语音播放完毕后点击可跳转
 
 **新增文件**：
 - `iosApp/TigerFire/UI/WelcomeView/WelcomeView.swift`
+
+**资源文件准备**：
+- `anim_truck_enter.json`（卡车入场动画，放入 Lottie 读取路径）
+- `anim_xiaohuo_wave.json`（小火挥手动画）
+- `sfx_truck_horn.mp3`（鸣笛音效）
+- `bgm_welcome.mp3`（背景音乐）
+- `voice_welcome_greeting.mp3`（欢迎语音）
+- `launcher_placeholder.png`（降级静态图）
 
 ---
 
