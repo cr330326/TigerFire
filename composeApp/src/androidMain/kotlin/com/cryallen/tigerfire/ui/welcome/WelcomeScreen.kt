@@ -7,15 +7,18 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
@@ -24,7 +27,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -32,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +53,7 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.cryallen.tigerfire.R
+import org.jetbrains.compose.resources.imageResource
 
 /**
  * 欢迎页/启动页 Screen（最终优化版 - 带背景图）
@@ -235,7 +237,7 @@ fun WelcomeScreen(
                 .fillMaxSize()
                 .padding(24.dp)
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
             // 卡车入场 Lottie 动画（带淡入效果）
             Box(
@@ -266,68 +268,88 @@ fun WelcomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
             // 欢迎文字（淡入效果）
             Text(
-                text = "HI！今天和我一起救火吧！",
+                text = "好好！今天和我一起救火吧！",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                modifier = Modifier.alpha(textAlphaAnimated),
+                modifier = Modifier
+                    .alpha(textAlphaAnimated)
+                    .offset(x = 0.dp, y = (-60).dp),
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 状态提示
-            if (state.isClickEnabled) {
-                // 点击提示（呼吸动画）
-                val pulseScale = infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.15f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(800, easing = FastOutSlowInEasing),
-                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-                    ),
-                    label = "pulse"
-                )
+            when {
+                state.isClickEnabled -> {
+                    // 点击提示（呼吸动画）
+                    val pulseScale = infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.15f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(800, easing = FastOutSlowInEasing),
+                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                        ),
+                        label = "pulse"
+                    )
 
-                Text(
-                    text = "👆 点击屏幕开始冒险！",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.scale(pulseScale.value),
-                    textAlign = TextAlign.Center
-                )
-            } else if (state.isVoicePlaying) {
-                // 语音播放中提示（呼吸效果）
-                val pulseAlpha = infiniteTransition.animateFloat(
-                    initialValue = 0.6f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000, easing = FastOutSlowInEasing),
-                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-                    ),
-                    label = "pulse_alpha"
-                )
+                    Text(
+                        text = "👆 点击屏幕开始冒险！",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier
+                            .scale(pulseScale.value),
+                        textAlign = TextAlign.Center
+                    )
+                }
 
-                Text(
-                    text = "🔊 语音播放中...",
-                    fontSize = 20.sp,
-                    color = Color.White.copy(alpha = pulseAlpha.value),
-                    textAlign = TextAlign.Center
-                )
-            } else if (!state.isTruckAnimationCompleted) {
-                // 卡车入场中提示
-                Text(
-                    text = "🚒 消防车出发中...",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f),
-                    textAlign = TextAlign.Center
-                )
+                state.isVoicePlaying -> {
+                    // 语音播放中提示（呼吸效果）
+                    val pulseAlpha = infiniteTransition.animateFloat(
+                        initialValue = 0.6f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = FastOutSlowInEasing),
+                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                        ),
+                        label = "pulse_alpha"
+                    )
+
+                    Text(
+                        text = "🔊 语音播放中...",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = pulseAlpha.value),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                !state.isTruckAnimationCompleted -> {
+                    // 卡车入场中提示
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.icon_firetruck),
+                            contentDescription = "消防车图标",
+                            modifier = Modifier.size(28.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(
+                            text = "消防车出发中...",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.9f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(40.dp))

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1633"
+    android:viewportHeight="1024">
+
+    <!-- 消防车车身主体 - 红色 -->
+    <path
+        android:fillColor="#E63946"
+        android:pathData="M55.64,289.43h1347.12a88.31,88.31 0,0 1,87.8 87.8v557.43H55.64v-557.43a88.31,88.31 0,0 1,87.8 -87.8z" />
+
+    <!-- 消防车顶部灰色区域 -->
+    <path
+        android:fillColor="#A4A9AD"
+        android:pathData="M1215.93,35.22a35.22,35.22 0,0 0,-35.22 -35.22H173.05a35.22,35.22 0,0 0,-35.22 35.22v42.37a35.22,35.22 0,0 0,35.22 35.22h1008.17a35.22,35.22 0,0 0,35.22 -35.22V35.22z" />
+
+    <!-- 驾驶室窗户 - 深灰色 -->
+    <path
+        android:fillColor="#333E48"
+        android:pathData="M1233.8,301.69h204.19a28.08,28.08 0,0 1,28.08 28.08v122a28.08,28.08 0,0 1,-28.08 28.08h-204.19a28.08,28.08 0,0 1,-28.08 -28.08v-122a28.08,28.08 0,0 1,28.08 -28.08z" />
+
+    <!-- 乘客窗户 - 深灰色 -->
+    <path
+        android:fillColor="#333E48"
+        android:pathData="M977.54,301.69h120.47a28.08,28.08 0,0 1,28.08 28.08v122a28.08,28.08 0,0 1,-28.08 28.08h-120.47a28.08,28.08 0,0 1,-28.08 -28.08v-122a28.08,28.08 0,0 1,28.08 -28.08z" />
+
+    <!-- 车身中间门区域 -->
+    <path
+        android:fillColor="#A4A9AD"
+        android:pathData="M685.04,503.32h264.42v343.54h-264.42z" />
+
+    <!-- 车门装饰 -->
+    <path
+        android:fillColor="#D1D3D3"
+        android:pathData="M740.18,567.63a24.5,24.5 0,1 1,24.5 24.5,24.5 24.5 0,0 1,-24.5 -24.5z" />
+    <path
+        android:fillColor="#D1D3D3"
+        android:pathData="M844.82,567.63a24.5,24.5 0,1 1,24.5 24.5,24.5 24.5 0,0 1,-24.5 -24.5z" />
+
+    <!-- 前轮 -->
+    <path
+        android:fillColor="#253038"
+        android:pathData="M240.43,846.86a177.13,177.13 0,1 0,177.13 -177.13,177.13 177.13 0,0 0,-177.13 177.13z" />
+    <path
+        android:fillColor="#A4A9AD"
+        android:pathData="M328.23,846.86a89.84,89.84 0,1 0,89.84 -88.31,89.84 89.84 0,0 0,-89.84 88.31z" />
+
+    <!-- 后轮 -->
+    <path
+        android:fillColor="#253038"
+        android:pathData="M1038.8,846.86a177.13,177.13 0,1 0,177.13 -177.13,177.13 177.13 0,0 0,-177.13 177.13z" />
+    <path
+        android:fillColor="#A4A9AD"
+        android:pathData="M1126.09,846.86a89.84,89.84 0,1 0,89.84 -88.31,89.84 89.84 0,0 0,-89.84 88.31z" />
+
+    <!-- 黄色警示灯/条纹 -->
+    <path
+        android:fillColor="#F4A261"
+        android:pathData="M1578.36,787.14h-75.04a17.36,17.36 0,0 1,-17.36 -17.36v-44.41a17.36,17.36 0,0 1,17.36 -17.36h75.04z" />
+    <path
+        android:fillColor="#F4A261"
+        android:pathData="M55.64,787.14h75.55a17.36,17.36 0,0 0,17.36 -17.36v-44.41a17.36,17.36 0,0 0,-17.36 -17.36H55.64z" />
+
+    <!-- 车顶警示灯 -->
+    <path
+        android:fillColor="#E63946"
+        android:pathData="M1408.88,148.55a24.5,24.5 0,0 0,-22.46 -16.33h-102.09a24.5,24.5 0,0 0,-22.46 16.85l-25.01 85.25a12.76,12.76 0,0 0,12.76 16.85h169.47a12.76,12.76 0,0 0,12.76 -16.85l-22.97 -85.77z" />
+
+    <!-- 车身装饰条纹 -->
+    <path
+        android:fillColor="#D1D3D3"
+        android:pathData="M55.64,545.18h1522.72v68.91h-1522.72z" />
+
+</vector>
