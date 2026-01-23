@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -418,15 +419,56 @@ private fun FireStationBackground() {
         label = "smokeAlpha1"
     )
 
-    // 星星闪烁
-    val starAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.7f,
+    // 星星闪烁 - 多个独立动画避免同步闪烁
+    val starAlpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.6f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(2500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+            initialStartOffset = StartOffset(0)
         ),
-        label = "starAlpha"
+        label = "starAlpha1"
+    )
+    val starAlpha2 by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+            initialStartOffset = StartOffset(800)
+        ),
+        label = "starAlpha2"
+    )
+    val starAlpha3 by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+            initialStartOffset = StartOffset(1600)
+        ),
+        label = "starAlpha3"
+    )
+    val starAlpha4 by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+            initialStartOffset = StartOffset(400)
+        ),
+        label = "starAlpha4"
+    )
+    val sparkleAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+            initialStartOffset = StartOffset(1200)
+        ),
+        label = "sparkleAlpha"
     )
 
     // 火焰跳动
@@ -496,33 +538,40 @@ private fun FireStationBackground() {
                 .alpha(0.08f)
         )
 
-        // 星星和闪光装饰 - 分布在四角
-        val starPositions = listOf(
-            Triple(Alignment.TopEnd, (-80).dp, 200.dp),
-            Triple(Alignment.TopStart, 60.dp, 150.dp),
-            Triple(Alignment.BottomEnd, (-50).dp, (-260).dp),
-            Triple(Alignment.CenterStart, 30.dp, 0.dp),
+        // 星星和闪光装饰 - 分布在四角，使用独立动画值
+        data class StarInfo(
+            val alignment: Alignment,
+            val xOffset: Dp,
+            val yOffset: Dp,
+            val alpha: Float
         )
 
-        starPositions.forEach { (alignment, xOffset, yOffset) ->
+        val starPositions = listOf(
+            StarInfo(Alignment.TopEnd, (-80).dp, 200.dp, starAlpha1),
+            StarInfo(Alignment.TopStart, 60.dp, 150.dp, starAlpha2),
+            StarInfo(Alignment.BottomEnd, (-50).dp, (-260).dp, starAlpha3),
+            StarInfo(Alignment.CenterStart, 30.dp, 0.dp, starAlpha4),
+        )
+
+        starPositions.forEach { (alignment, xOffset, yOffset, alpha) ->
             Text(
                 text = "⭐",
                 fontSize = (20..32).random().sp,
                 modifier = Modifier
                     .align(alignment)
                     .offset(x = xOffset, y = yOffset)
-                    .alpha(starAlpha * 0.25f)
+                    .alpha(alpha * 0.2f)
             )
         }
 
-        // 闪光效果
+        // 闪光效果 - 独立动画
         Text(
             text = "✨",
             fontSize = 24.sp,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .offset(x = 100.dp, y = 220.dp)
-                .alpha(starAlpha * 0.2f)
+                .alpha(sparkleAlpha * 0.18f)
         )
 
         // 底部火焰装饰条 - 卡通风格
