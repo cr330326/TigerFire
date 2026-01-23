@@ -33,15 +33,17 @@ data class GameProgress(
 
         /**
          * 默认场景状态
-         * - 消防站：默认解锁
-         * - 学校：默认锁定
-         * - 森林：默认锁定
+         *
+         * 测试模式：所有场景默认解锁，方便测试所有功能
+         * 生产模式：消防站解锁，学校和森林锁定
          */
         fun defaultSceneStatuses(): Map<SceneType, SceneStatus> {
+            // TODO: 生产环境应该使用渐进式解锁逻辑
+            // 当前为测试模式，所有场景都解锁
             return mapOf(
                 SceneType.FIRE_STATION to SceneStatus.UNLOCKED,
-                SceneType.SCHOOL to SceneStatus.LOCKED,
-                SceneType.FOREST to SceneStatus.LOCKED
+                SceneType.SCHOOL to SceneStatus.UNLOCKED,
+                SceneType.FOREST to SceneStatus.UNLOCKED
             )
         }
 

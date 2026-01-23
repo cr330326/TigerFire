@@ -1236,7 +1236,7 @@ private fun AvatarCharacter(
             // 使用 icon_avatar.jpg 图片资源
             androidx.compose.foundation.Image(
                 painter = painterResource(id = R.drawable.icon_avatar),
-                contentDescription = "小火角色",
+                contentDescription = "好好",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(92.dp) // 略小于容器，留出边缘
