@@ -1,5 +1,6 @@
 package com.cryallen.tigerfire.presentation.map
 
+import androidx.compose.ui.geometry.Offset
 import com.cryallen.tigerfire.domain.model.SceneType
 
 /**
@@ -14,6 +15,21 @@ sealed class MapEvent {
      * @property scene 场景类型
      */
     data class SceneClicked(val scene: SceneType) : MapEvent()
+
+    /**
+     * 更新选中的场景（用于 Avatar 位置记忆，不触发导航）
+     *
+     * @property scene 场景类型
+     */
+    data class UpdateSelectedScene(val scene: SceneType) : MapEvent()
+
+    /**
+     * 更新场景图标位置（用于 Avatar 定位）
+     *
+     * @property scene 场景类型
+     * @property offset 场景图标的位置
+     */
+    data class UpdateScenePosition(val scene: SceneType, val offset: Offset) : MapEvent()
 
     /**
      * 点击"我的收藏"按钮

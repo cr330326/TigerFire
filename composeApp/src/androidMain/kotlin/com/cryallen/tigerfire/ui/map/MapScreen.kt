@@ -2,10 +2,16 @@ package com.cryallen.tigerfire.ui.map
 
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -40,6 +47,12 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -49,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cryallen.tigerfire.R
 import com.cryallen.tigerfire.domain.model.SceneStatus
 import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.presentation.map.MapEffect
@@ -80,18 +94,40 @@ fun MapScreen(
     appSessionManager: com.cryallen.tigerfire.presentation.common.AppSessionManager? = null
 ) {
     val state by viewModel.state.collectAsState()
+    val selectedScene by viewModel.selectedScene.collectAsState()
+    val animationTrigger by viewModel.animationTrigger.collectAsState()
+    val scenePositions by viewModel.scenePositions.collectAsState()
+
+    // ==================== Avatar 角色位置状态 ====================
+    // 是否正在跳跃动画中
+    var isJumping by remember { mutableStateOf(false) }
+    // 待导航的场景（用于动画完成后延迟导航）
+    var pendingNavigationScene by remember { mutableStateOf<SceneType?>(null) }
+
+    // ==================== 监听跳跃动画完成，延迟导航 ====================
+    LaunchedEffect(isJumping, pendingNavigationScene) {
+        // 当跳跃动画结束且有待导航的场景时
+        if (!isJumping && pendingNavigationScene != null) {
+            delay(200) // 延迟 200ms
+            // 根据待导航场景执行导航
+            when (pendingNavigationScene) {
+                SceneType.FIRE_STATION -> onNavigateToFireStation()
+                SceneType.SCHOOL -> onNavigateToSchool()
+                SceneType.FOREST -> onNavigateToForest()
+                null -> { /* 不做任何事 */ }
+            }
+            // 清除待导航状态
+            pendingNavigationScene = null
+        }
+    }
 
     // 订阅副作用（Effect）
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is MapEffect.NavigateToScene -> {
-                    when (effect.scene) {
-                        SceneType.FIRE_STATION -> onNavigateToFireStation()
-                        SceneType.SCHOOL -> onNavigateToSchool()
-                        SceneType.FOREST -> onNavigateToForest()
-                    }
-                }
+                // 注意：场景导航现在通过 pendingNavigationScene + 动画完成回调处理
+                // NavigateToScene 效果被忽略，避免重复导航
+                is MapEffect.NavigateToScene -> { /* 已在本地处理，忽略 */ }
                 is MapEffect.NavigateToCollection -> onNavigateToCollection()
                 is MapEffect.NavigateToParent -> onNavigateToParent()
                 is MapEffect.PlayLockedHint, is MapEffect.PlaySceneSound,
@@ -521,7 +557,18 @@ fun MapScreen(
                     primaryColor = Color(0xFFE63946),
                     secondaryColor = Color(0xFFFF6B6B),
                     accentColor = Color(0xFFFFD700),
-                    onClick = { viewModel.onEvent(MapEvent.SceneClicked(SceneType.FIRE_STATION)) }
+                    onClick = {
+                        // 更新 ViewModel 状态（用于返回时保持位置）
+                        // ViewModel 会自动增加 animationTrigger 并更新 selectedScene
+                        viewModel.onEvent(MapEvent.UpdateSelectedScene(SceneType.FIRE_STATION))
+                        // 触发跳跃动画和导航
+                        isJumping = true
+                        // 设置待导航场景，动画完成后会自动延迟导航
+                        pendingNavigationScene = SceneType.FIRE_STATION
+                    },
+                    onPositioned = { offset ->
+                        viewModel.onEvent(MapEvent.UpdateScenePosition(SceneType.FIRE_STATION, offset))
+                    }
                 )
 
                 // 学校图标 - 蓝色主题，组合图标
@@ -534,7 +581,18 @@ fun MapScreen(
                     primaryColor = Color(0xFF457B9D),
                     secondaryColor = Color(0xFFA8DADC),
                     accentColor = Color(0xFFFFE66D),
-                    onClick = { viewModel.onEvent(MapEvent.SceneClicked(SceneType.SCHOOL)) }
+                    onClick = {
+                        // 更新 ViewModel 状态（用于返回时保持位置）
+                        // ViewModel 会自动增加 animationTrigger 并更新 selectedScene
+                        viewModel.onEvent(MapEvent.UpdateSelectedScene(SceneType.SCHOOL))
+                        // 触发跳跃动画和导航
+                        isJumping = true
+                        // 设置待导航场景，动画完成后会自动延迟导航
+                        pendingNavigationScene = SceneType.SCHOOL
+                    },
+                    onPositioned = { offset ->
+                        viewModel.onEvent(MapEvent.UpdateScenePosition(SceneType.SCHOOL, offset))
+                    }
                 )
 
                 // 森林图标 - 绿色主题，组合图标
@@ -547,34 +605,22 @@ fun MapScreen(
                     primaryColor = Color(0xFF2A9D8F),
                     secondaryColor = Color(0xFF95D5B2),
                     accentColor = Color(0xFFFFB6C1),
-                    onClick = { viewModel.onEvent(MapEvent.SceneClicked(SceneType.FOREST)) }
+                    onClick = {
+                        // 更新 ViewModel 状态（用于返回时保持位置）
+                        // ViewModel 会自动增加 animationTrigger 并更新 selectedScene
+                        viewModel.onEvent(MapEvent.UpdateSelectedScene(SceneType.FOREST))
+                        // 触发跳跃动画和导航
+                        isJumping = true
+                        // 设置待导航场景，动画完成后会自动延迟导航
+                        pendingNavigationScene = SceneType.FOREST
+                    },
+                    onPositioned = { offset ->
+                        viewModel.onEvent(MapEvent.UpdateScenePosition(SceneType.FOREST, offset))
+                    }
                 )
             }
 
             Spacer(modifier = Modifier.height(40.dp))
-
-            // 场景说明 - 更醒目
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = Color(0xFFFFD700).copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .padding(horizontal = 28.dp, vertical = 14.dp)
-                    .shadow(
-                        elevation = 6.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        spotColor = Color(0xFFFFD700).copy(alpha = 0.5f)
-                    )
-            ) {
-                Text(
-                    text = "✨ 点击图标开始冒险 ✨",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE63946),
-                    textAlign = TextAlign.Center
-                )
-            }
         }
 
         // 家长模式验证对话框
@@ -611,6 +657,16 @@ fun MapScreen(
                 )
             }
         }
+
+        // ==================== Avatar 角色组件 ====================
+        // 小火角色图标，根据选中的场景进行跳跃移动
+        AvatarCharacter(
+            selectedScene = selectedScene,
+            scenePositions = scenePositions,
+            isJumping = isJumping,
+            animationTrigger = animationTrigger,
+            onJumpComplete = { isJumping = false }
+        )
     }
 }
 
@@ -626,6 +682,7 @@ fun MapScreen(
  * @param secondaryColor 次要色调
  * @param accentColor 强调色
  * @param onClick 点击回调
+ * @param onPositioned 位置记录回调（用于 Avatar 定位）
  */
 @Composable
 private fun EnhancedSceneIcon(
@@ -637,7 +694,8 @@ private fun EnhancedSceneIcon(
     primaryColor: Color,
     secondaryColor: Color,
     accentColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onPositioned: (Offset) -> Unit = {}
 ) {
     // 无限循环动画 - 用于呼吸闪烁效果
     val infiniteTransition = rememberInfiniteTransition(label = "enhanced_scene_icon_animation")
@@ -699,6 +757,18 @@ private fun EnhancedSceneIcon(
     Box(
         modifier = Modifier
             .size(160.dp)
+            .onGloballyPositioned { coordinates ->
+                // 记录场景图框底部中心位置（Avatar 定位点）
+                val position = coordinates.positionInWindow()
+                val size = coordinates.size
+                // 计算 Box 底部中心的偏移量
+                onPositioned(
+                    Offset(
+                        x = position.x + size.width / 2,
+                        y = position.y + size.height
+                    )
+                )
+            }
             .scale(scaleAnimation)
             .rotate(if (isCompleted) rotateAnimation else 0f)
             .then(
@@ -1049,6 +1119,133 @@ fun TimeReminderDialog(
                         .padding(horizontal = 32.dp, vertical = 12.dp)
                 )
             }
+        }
+    }
+}
+
+/**
+ * Avatar 角色组件 - 小火图标
+ *
+ * 根据选中的场景进行跳跃移动动画
+ *
+ * @param selectedScene 当前选中的场景
+ * @param scenePositions 各场景图框的位置信息
+ * @param isJumping 是否正在跳跃动画中
+ * @param animationTrigger 动画触发器，用于强制触发动画
+ * @param onJumpComplete 跳跃动画完成回调
+ */
+@Composable
+private fun AvatarCharacter(
+    selectedScene: SceneType,
+    scenePositions: Map<SceneType, Offset>,
+    isJumping: Boolean,
+    animationTrigger: Int,
+    onJumpComplete: () -> Unit
+) {
+    val density = LocalDensity.current
+
+    // ==================== 计算目标位置 ====================
+    val targetPosition = scenePositions[selectedScene]
+
+    // 计算目标 X 位置
+    val targetX = if (targetPosition != null) {
+        // 使用实际场景位置，减去 Avatar 一半宽度（48dp = 96dp/2）使其居中
+        targetPosition.x - with(density) { 48.dp.toPx() }
+    } else {
+        // 使用默认位置（基于场景类型）
+        val screenWidth = with(density) { 360.dp.toPx() }
+        when (selectedScene) {
+            SceneType.FIRE_STATION -> screenWidth * 0.3f - with(density) { 48.dp.toPx() }
+            SceneType.SCHOOL -> screenWidth * 0.5f - with(density) { 48.dp.toPx() }
+            SceneType.FOREST -> screenWidth * 0.7f - with(density) { 48.dp.toPx() }
+        }
+    }
+
+    // 计算目标 Y 位置（在场景图框下方 10dp）
+    val targetY = if (targetPosition != null) {
+        targetPosition.y + with(density) { 10.dp.toPx() }
+    } else {
+        // 默认垂直位置
+        with(density) { 380.dp.toPx() }
+    }
+
+    // ==================== 使用 Animatable 创建平滑的位置动画 ====================
+    val animatedX = remember { Animatable(targetX) }
+    val animatedY = remember { Animatable(targetY) }
+
+    // 当场景改变、触发器变化或 isJumping 变化时，执行平滑移动动画
+    LaunchedEffect(selectedScene, animationTrigger, isJumping) {
+        // 只有当 isJumping 为 true 时才执行动画
+        if (isJumping) {
+            // 执行平滑动画到目标位置
+            val springSpec = spring<Float>(
+                dampingRatio = 0.5f,
+                stiffness = 200f
+            )
+
+            // 无论当前位置在哪里，都执行动画到目标位置
+            // 这样确保了即使已经在目标位置，也会有一个短暂的动画效果
+            animatedX.animateTo(targetX, animationSpec = springSpec)
+            animatedY.animateTo(targetY, animationSpec = springSpec)
+
+            // 动画完成后通知父组件
+            onJumpComplete()
+        }
+        // 如果 isJumping 为 false，直接显示在目标位置（animatedX/Y 已经在 targetX/targetY）
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .offset(
+                x = with(density) { animatedX.value.toDp() },
+                y = with(density) { animatedY.value.toDp() }
+            )
+    ) {
+        // ==================== 圆形 Avatar 图片 ====================
+        Box(
+            modifier = Modifier
+                .size(96.dp) // 96x96 分辨率
+                .clip(CircleShape) // 圆形裁剪
+                .shadow(
+                    elevation = 12.dp,
+                    shape = CircleShape,
+                    spotColor = Color(0xFFFFD700).copy(alpha = 0.4f)
+                )
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFFFF8DC), // 浅黄色中心
+                            Color(0xFFFFD700)  // 金色边缘
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            // 使用 icon_avatar.jpg 图片资源
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = R.drawable.icon_avatar),
+                contentDescription = "小火角色",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(92.dp) // 略小于容器，留出边缘
+                    .clip(CircleShape) // 确保图片也是圆形的
+            )
+
+            // 装饰性光晕效果
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .drawBehind {
+                        // 绘制金色光环
+                        drawCircle(
+                            color = Color(0xFFFFD700).copy(alpha = 0.3f),
+                            radius = size.minDimension / 2 - 2.dp.toPx(),
+                            style = Stroke(width = 3.dp.toPx())
+                        )
+                    }
+            )
         }
     }
 }

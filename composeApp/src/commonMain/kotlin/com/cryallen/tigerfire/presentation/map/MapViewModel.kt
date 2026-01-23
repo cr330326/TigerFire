@@ -1,5 +1,6 @@
 package com.cryallen.tigerfire.presentation.map
 
+import androidx.compose.ui.geometry.Offset
 import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.GameProgress
 import com.cryallen.tigerfire.domain.model.SceneStatus
@@ -31,6 +32,18 @@ class MapViewModel(
 
     private val _state = MutableStateFlow(MapState())
     val state: StateFlow<MapState> = _state
+
+    // 单独管理选中的场景（用于 Avatar 位置记忆，不受 progressRepository 更新影响）
+    private val _selectedScene = MutableStateFlow(SceneType.FIRE_STATION)
+    val selectedScene: StateFlow<SceneType> = _selectedScene
+
+    // 单独管理动画触发器（不受 progressRepository 更新影响）
+    private val _animationTrigger = MutableStateFlow(0)
+    val animationTrigger: StateFlow<Int> = _animationTrigger
+
+    // 单独管理场景图标位置（不受 progressRepository 更新影响）
+    private val _scenePositions = MutableStateFlow<Map<SceneType, Offset>>(emptyMap())
+    val scenePositions: StateFlow<Map<SceneType, Offset>> = _scenePositions
 
     // ==================== 副作用通道 ====================
 
@@ -69,6 +82,8 @@ class MapViewModel(
     fun onEvent(event: MapEvent) {
         when (event) {
             is MapEvent.SceneClicked -> handleSceneClicked(event.scene)
+            is MapEvent.UpdateSelectedScene -> handleUpdateSelectedScene(event.scene)
+            is MapEvent.UpdateScenePosition -> handleUpdateScenePosition(event.scene, event.offset)
             is MapEvent.CollectionClicked -> handleCollectionClicked()
             is MapEvent.ParentModeClicked -> handleParentModeClicked()
             is MapEvent.SubmitParentAnswer -> handleSubmitAnswer(event.answer)
@@ -100,6 +115,26 @@ class MapViewModel(
                 sendEffect(MapEffect.PlayLockedHint)
             }
         }
+    }
+
+    /**
+     * 处理更新选中的场景（不触发导航，仅用于状态记忆）
+     *
+     * @param scene 场景类型
+     */
+    private fun handleUpdateSelectedScene(scene: SceneType) {
+        _selectedScene.value = scene
+        _animationTrigger.value++
+    }
+
+    /**
+     * 处理更新场景图标位置
+     *
+     * @param scene 场景类型
+     * @param offset 场景图标位置
+     */
+    private fun handleUpdateScenePosition(scene: SceneType, offset: Offset) {
+        _scenePositions.value = _scenePositions.value + (scene to offset)
     }
 
     /**
