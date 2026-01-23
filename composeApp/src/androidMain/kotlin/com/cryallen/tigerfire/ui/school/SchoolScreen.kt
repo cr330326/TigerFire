@@ -6,8 +6,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.expandIn
+import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,13 +26,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -40,14 +43,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.cryallen.tigerfire.component.VideoPlayer
 import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.presentation.school.SchoolEffect
@@ -59,8 +65,14 @@ import kotlinx.coroutines.launch
 /**
  * 学校场景 Screen
  *
- * 自动播放剧情动画，展示火灾应急流程
- * 动画播放完毕后颁发徽章并解锁森林场景
+ * 适合 3-6 岁儿童的消防安全教育场景
+ *
+ * 交互流程：
+ * 1. 进入场景 → 警报音效 + 红光闪烁 + 小火语音提示
+ * 2. 显示超大播放按钮（≥150pt）引导点击
+ * 3. 点击播放按钮 → 停止警报 + 播放视频
+ * 4. 视频完成 → 小火点赞动画 + 语音 + 徽章奖励
+ * 5. 点击继续 → 返回主地图
  *
  * @param viewModel SchoolViewModel
  * @param onNavigateBack 返回主地图回调
@@ -73,35 +85,32 @@ fun SchoolScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val audioManager = remember { context.getAudioManager() }
+    val coroutineScope = rememberCoroutineScope()
 
     // 警报红光闪烁动画透明度
     var alertAlpha by remember { mutableFloatStateOf(0f) }
 
     // 自动触发页面进入事件
     LaunchedEffect(Unit) {
-        // 先播放警报音效，让用户看到背景装饰
-        audioManager.playAlertSound()
-
-        // 播放小火语音："学校着火啦！快叫消防车！"
-        audioManager.playVoice("voice/school_fire.mp3")
-
-        // 延迟 2 秒后才开始播放视频，让用户先欣赏背景
-        delay(2000)
-
-        // 然后触发页面进入事件，开始播放视频
+        // 触发页面进入事件
         viewModel.onEvent(SchoolEvent.ScreenEntered)
 
-        // 警报红光闪烁动画（柔和脉冲）
+        // 启动警报红光闪烁动画（柔和脉冲）
         while (true) {
             // 渐入
             for (i in 0..10) {
-                alertAlpha = i * 0.03f  // 最大 0.3，避免刺眼
+                if (!state.showAlarmEffect) break
+                alertAlpha = i * 0.025f  // 最大 0.25，避免刺眼
                 delay(50)
             }
             // 渐出
             for (i in 10 downTo 0) {
-                alertAlpha = i * 0.03f
+                if (!state.showAlarmEffect) break
+                alertAlpha = i * 0.025f
                 delay(50)
+            }
+            if (!state.showAlarmEffect) {
+                alertAlpha = 0f
             }
             delay(500)  // 停顿
         }
@@ -111,13 +120,23 @@ fun SchoolScreen(
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is SchoolEffect.PlayAnimation -> {
+                is SchoolEffect.StartAlarmEffects -> {
+                    // 启动警报音效
+                    audioManager.playAlertSound()
+                }
+                is SchoolEffect.StopAlarmEffects -> {
+                    // 停止警报音效
+                    audioManager.stopAlertSound()
+                }
+                is SchoolEffect.PlayVoice -> {
+                    // 播放语音
+                    audioManager.playVoice(effect.voicePath)
+                }
+                is SchoolEffect.PlayVideo -> {
                     // VideoPlayer 由状态驱动，无需额外处理
                 }
                 is SchoolEffect.ShowBadgeAnimation -> {
                     // 徽章动画在 showBadgeAnimation 状态中处理
-                    // 播放小火语音："你真棒！记住，着火要找大人帮忙！"
-                    audioManager.playVoice("voice/school_praise.mp3")
                 }
                 is SchoolEffect.PlayBadgeSound -> {
                     audioManager.playBadgeSound()
@@ -129,6 +148,7 @@ fun SchoolScreen(
                     // 森林场景已解锁，在进度中自动处理
                 }
                 is SchoolEffect.NavigateToMap -> {
+                    // 导航回主地图
                     audioManager.stopAlertSound()
                     onNavigateBack()
                 }
@@ -161,82 +181,61 @@ fun SchoolScreen(
             )
     ) {
         // 学校场景装饰性背景元素
-        SchoolBackground()
+        SchoolBackgroundEnhanced()
 
         // 警报红光闪烁效果（屏幕边缘）
-        if (state.isPlayingAnimation) {
+        if (state.showAlarmEffect && alertAlpha > 0f) {
             AlertFlashOverlay(alpha = alertAlpha)
         }
 
+        // 主内容区域
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 顶部工具栏（返回按钮）
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                IconButton(
-                    onClick = {
-                        viewModel.onEvent(SchoolEvent.BackToMapClicked)
-                    },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .shadow(4.dp, CircleShape)
-                        .background(Color.White, CircleShape)
-                ) {
-                    Text(
-                        text = "←",
-                        fontSize = 24.sp,
-                        color = Color.Black
-                    )
-                }
-            }
+            // 顶部工具栏（返回按钮 + 场景标题）
+            TopBar(
+                onBackClick = {
+                    viewModel.onEvent(SchoolEvent.BackToMapClicked)
+                },
+                isVideoPlaying = state.isVideoPlaying
+            )
 
             // 中央内容区域
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 32.dp),
+                    .weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // 场景标题
-                Text(
-                    text = "学校",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "消防安全情景动画",
-                    fontSize = 18.sp,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
-
-                Spacer(modifier = Modifier.height(48.dp))
-
-                // 播放提示/完成状态显示区域
-                AnimationPlayerArea(
-                    isPlaying = state.isPlayingAnimation,
-                    isCompleted = state.isCompleted,
-                    onPlaybackComplete = {
-                        viewModel.onEvent(SchoolEvent.AnimationPlaybackCompleted)
+                // 根据状态显示不同内容
+                when {
+                    state.showPlayButton -> {
+                        // 显示播放按钮区域
+                        PlayButtonArea(
+                            onPlayClick = {
+                                viewModel.onEvent(SchoolEvent.PlayButtonClicked)
+                            }
+                        )
                     }
-                )
+                    state.isVideoPlaying -> {
+                        // 视频播放中提示
+                        VideoPlayingIndicator()
+                    }
+                    state.isCompleted && !state.showBadgeAnimation && !state.isVideoPlaying -> {
+                        // 已完成状态
+                        CompletedIndicator()
+                    }
+                }
             }
         }
 
-        // 视频播放覆盖层 - 全屏播放确保视频正常渲染
-        if (state.isPlayingAnimation) {
+        // 视频播放全屏覆盖层
+        if (state.isVideoPlaying) {
             VideoPlayerOverlay(
+                videoPath = state.currentVideoPath,
                 onPlaybackComplete = {
-                    viewModel.onEvent(SchoolEvent.AnimationPlaybackCompleted)
+                    viewModel.onEvent(SchoolEvent.VideoPlaybackCompleted)
                 }
             )
         }
@@ -252,383 +251,505 @@ fun SchoolScreen(
 }
 
 /**
+ * 顶部工具栏
+ *
+ * 包含返回按钮和场景标题
+ */
+@Composable
+private fun TopBar(
+    onBackClick: () -> Unit,
+    isVideoPlaying: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 返回按钮（视频播放中隐藏或禁用）
+        if (!isVideoPlaying) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .size(56.dp)  // 增大点击区域
+                    .shadow(6.dp, CircleShape)
+                    .background(Color.White, CircleShape)
+            ) {
+                Text(
+                    text = "←",
+                    fontSize = 28.sp,
+                    color = Color(0xFF457B9D)
+                )
+            }
+        } else {
+            // 占位，保持布局一致
+            Spacer(modifier = Modifier.size(56.dp))
+        }
+
+        // 场景标题
+        Text(
+            text = "🏫 学校",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        // 占位，保持标题居中
+        Spacer(modifier = Modifier.size(56.dp))
+    }
+}
+
+/**
+ * 播放按钮区域
+ *
+ * 超大播放按钮，适合 3-6 岁儿童点击
+ */
+@Composable
+private fun PlayButtonArea(
+    onPlayClick: () -> Unit
+) {
+    // 脉冲动画
+    val infiniteTransition = rememberInfiniteTransition(label = "playButtonPulse")
+
+    // 按钮缩放动画（呼吸效果）
+    val buttonScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "buttonScale"
+    )
+
+    // 外圈光晕扩散动画
+    val haloScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "haloScale"
+    )
+
+    val haloAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "haloAlpha"
+    )
+
+    // 星星闪烁
+    val starAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "starAlpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(32.dp)
+        ) {
+            // 场景说明文字
+            Text(
+                text = "学校消防安全知识",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+
+            Text(
+                text = "小朋友发现火灾后应该怎么做？",
+                fontSize = 20.sp,
+                color = Color.White.copy(alpha = 0.9f),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 超大播放按钮容器
+            Box(
+                modifier = Modifier.size(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // 外圈光晕效果
+                Box(
+                    modifier = Modifier
+                        .size(200.dp)
+                        .scale(haloScale)
+                        .alpha(haloAlpha)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFFFF6B6B).copy(alpha = 0.3f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+
+                // 星星装饰
+                listOf(
+                    Offset(-80f, -80f),
+                    Offset(80f, -80f),
+                    Offset(-80f, 80f),
+                    Offset(80f, 80f),
+                    Offset(0f, -95f),
+                    Offset(0f, 95f),
+                    Offset(-95f, 0f),
+                    Offset(95f, 0f)
+                ).forEach { offset ->
+                    Text(
+                        text = "⭐",
+                        fontSize = 24.sp,
+                        modifier = Modifier
+                            .offset(x = offset.x.dp, y = offset.y.dp)
+                            .alpha(starAlpha * 0.5f)
+                    )
+                }
+
+                // 主播放按钮
+                Box(
+                    modifier = Modifier
+                        .size(160.dp)
+                        .scale(buttonScale)
+                        .shadow(
+                            elevation = 16.dp,
+                            spotColor = Color(0xFFFF6B6B).copy(alpha = 0.5f),
+                            shape = CircleShape
+                        )
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFFF6B6B),  // 红色
+                                    Color(0xFFFF8E53)   // 橙红色
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onPlayClick
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 播放图标（三角形）
+                    Text(
+                        text = "▶",
+                        fontSize = 64.sp,
+                        color = Color.White,
+                        modifier = Modifier.offset(x = 8.dp)  // 视觉居中
+                    )
+                }
+
+                // 按钮外圈装饰
+                Box(
+                    modifier = Modifier
+                        .size(170.dp)
+                        .scale(buttonScale)
+                        .drawBehind {
+                            drawRoundRect(
+                                color = Color.White.copy(alpha = 0.3f),
+                                style = Stroke(width = 4.dp.toPx()),
+                                cornerRadius = CornerRadius(85.dp.toPx(), 85.dp.toPx())  // 半径 = 尺寸的一半
+                            )
+                        }
+                )
+            }
+
+            // 提示文字
+            Text(
+                text = "👆 点击播放动画",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+
+            // 小提示
+            Text(
+                text = "和小火一起学习消防安全知识吧！",
+                fontSize = 18.sp,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/**
+ * 视频播放中指示器
+ */
+@Composable
+private fun VideoPlayingIndicator() {
+    // 加载动画
+    val infiniteTransition = rememberInfiniteTransition(label = "loadingIndicator")
+
+    val dotScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dotScale"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "🎬",
+            fontSize = 80.sp
+        )
+
+        Text(
+            text = "正在播放动画...",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        // 加载点动画
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            repeat(3) { index ->
+                val delay = index * 100L
+                val scale by infiniteTransition.animateFloat(
+                    initialValue = 0.8f,
+                    targetValue = 1.2f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = 600,
+                            delayMillis = delay.toInt(),
+                            easing = FastOutSlowInEasing
+                        ),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "dot$index"
+                )
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .scale(scale)
+                        .background(
+                            Color.White,
+                            shape = CircleShape
+                        )
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 完成状态指示器
+ */
+@Composable
+private fun CompletedIndicator() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "✅",
+            fontSize = 80.sp
+        )
+
+        Text(
+            text = "已完成观看",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        Text(
+            text = "你获得了学校徽章！",
+            fontSize = 22.sp,
+            color = Color.White.copy(alpha = 0.9f)
+        )
+    }
+}
+
+/**
  * 警报红光闪烁覆盖层
  *
  * 柔和的红色脉冲效果，不刺眼
- *
- * @param alpha 透明度（0-1）
  */
 @Composable
 private fun AlertFlashOverlay(alpha: Float) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Red.copy(alpha = alpha))
+            .drawBehind {
+                // 绘制屏幕边缘红色边框
+                val strokeWidth = 32.dp.toPx()
+                drawRoundRect(
+                    color = Color.Red.copy(alpha = alpha),
+                    style = Stroke(width = strokeWidth),
+                    cornerRadius = CornerRadius(0f)
+                )
+            }
     )
 }
 
 /**
- * 学校场景装饰性背景组件
- * 卡通风格的学校场景装饰
+ * 增强版学校场景装饰性背景
+ *
+ * 包含更多动态元素和儿童友好的装饰
  */
 @Composable
-private fun SchoolBackground() {
-    // 多层动画效果
-    val infiniteTransition = rememberInfiniteTransition(label = "schoolBgAnimations")
+private fun SchoolBackgroundEnhanced() {
+    val infiniteTransition = rememberInfiniteTransition(label = "schoolBgEnhanced")
 
     // 云朵浮动
     val cloud1X by infiniteTransition.animateFloat(
-        initialValue = -20f,
-        targetValue = 20f,
+        initialValue = -30f,
+        targetValue = 30f,
         animationSpec = infiniteRepeatable(
-            animation = tween(10000, easing = LinearEasing),
+            animation = tween(15000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "cloud1X"
     )
-    val cloud2X by infiniteTransition.animateFloat(
-        initialValue = 15f,
-        targetValue = -15f,
+
+    // 消防车移动（小火提示）
+    val fireTruckX by infiniteTransition.animateFloat(
+        initialValue = -100f,
+        targetValue = 100f,
         animationSpec = infiniteRepeatable(
-            animation = tween(12000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
         ),
-        label = "cloud2X"
+        label = "fireTruckX"
     )
 
     // 星星闪烁
     val starAlpha1 by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.6f,
+        initialValue = 0.2f,
+        targetValue = 0.7f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
+            animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "starAlpha1"
     )
-    val starAlpha2 by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.55f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "starAlpha2"
-    )
-
-    // 书本跳动动画
-    val bookScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bookScale"
-    )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 背景云朵层 - 柔和的氛围
-        Text(
-            text = "☁️",
-            fontSize = 64.sp,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = (-40 + cloud1X).dp, y = 50.dp)
-                .alpha(0.15f)
-        )
+        // 背景云朵层
         Text(
             text = "☁️",
             fontSize = 80.sp,
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = (20 + cloud2X).dp, y = 80.dp)
-                .alpha(0.12f)
+                .align(Alignment.TopStart)
+                .offset(x = (-60 + cloud1X * 0.5f).dp, y = 40.dp)
+                .alpha(0.1f)
         )
         Text(
             text = "☁️",
-            fontSize = 56.sp,
+            fontSize = 100.sp,
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = (20 + cloud1X * 0.5f).dp, y = (-150).dp)
-                .alpha(0.1f)
+                .align(Alignment.TopEnd)
+                .offset(x = (30 + cloud1X * 0.3f).dp, y = 100.dp)
+                .alpha(0.08f)
         )
 
-        // 左上角学校建筑剪影
+        // 消防车装饰（底部移动）
+        Text(
+            text = "🚒",
+            fontSize = 60.sp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .offset(x = fireTruckX.dp, y = (-20).dp)
+                .alpha(0.12f)
+        )
+
+        // 学校建筑
         Column(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = (-10).dp, y = 40.dp)
-                .alpha(0.08f),
+                .align(Alignment.BottomStart)
+                .offset(x = 20.dp, y = (-10).dp)
+                .alpha(0.1f),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = "🏫",
-                fontSize = 100.sp
-            )
-            Text(
-                text = "📚",
-                fontSize = 60.sp,
-                modifier = Modifier.offset(x = 20.dp, y = (-10).dp)
+                fontSize = 120.sp
             )
         }
 
-        // 右下角装饰 - 书本和铅笔
+        // 安全相关装饰元素
         Row(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .offset(x = (-20).dp, y = (-30).dp)
-                .alpha(0.08f),
-            horizontalArrangement = Arrangement.spacedBy((-10).dp)
+                .offset(x = (-30).dp, y = (-40).dp)
+                .alpha(0.1f),
+            horizontalArrangement = Arrangement.spacedBy((-20).dp)
         ) {
             Text(
-                text = "✏️",
+                text = "🔥",
                 fontSize = 50.sp
             )
             Text(
-                text = "📖",
-                fontSize = 70.sp,
-                modifier = Modifier.scale(bookScale)
+                text = "🧯",
+                fontSize = 50.sp
             )
         }
 
-        // 星星和闪光装饰
-        data class StarPos(
-            val alignment: Alignment,
-            val xOffset: Dp,
-            val yOffset: Dp,
-            val alpha: Float,
-            val emoji: String = "⭐"
-        )
-
+        // 星星装饰（多个位置）
         val starPositions = listOf(
-            StarPos(Alignment.TopEnd, (-60).dp, 180.dp, starAlpha1),
-            StarPos(Alignment.TopStart, 50.dp, 120.dp, starAlpha2),
-            StarPos(Alignment.CenterEnd, (-30).dp, (-80).dp, starAlpha1, "✨"),
-            StarPos(Alignment.CenterStart, 40.dp, 0.dp, starAlpha2, "✨"),
+            Pair(Alignment.TopEnd, Pair((-80).dp, 200.dp)),
+            Pair(Alignment.TopStart, Pair(60.dp, 150.dp)),
+            Pair(Alignment.CenterEnd, Pair((-50).dp, (-100).dp)),
+            Pair(Alignment.CenterStart, Pair(50.dp, 50.dp)),
         )
 
-        starPositions.forEach { (alignment, xOffset, yOffset, alpha, emoji) ->
+        starPositions.forEach { (alignment, offset) ->
             Text(
-                text = emoji,
-                fontSize = (18..26).random().sp,
+                text = "✨",
+                fontSize = 20.sp,
                 modifier = Modifier
                     .align(alignment)
-                    .offset(x = xOffset, y = yOffset)
-                    .alpha(alpha * 0.2f)
+                    .offset(x = offset.first, y = offset.second)
+                    .alpha(starAlpha1 * 0.15f)
             )
         }
 
-        // 左下角装饰
+        // 顶部小火老虎提示
         Text(
-            text = "🎒",
-            fontSize = 70.sp,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = 10.dp, y = (-20).dp)
-                .alpha(0.08f)
-        )
-
-        // 顶部太阳装饰 - 温暖的感觉
-        val sunRotation by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(20000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "sunRotation"
-        )
-
-        Text(
-            text = "☀️",
-            fontSize = 50.sp,
+            text = "🐯",
+            fontSize = 40.sp,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = 30.dp)
-                .rotate(sunRotation)
-                .alpha(0.12f)
+                .offset(y = 60.dp)
+                .alpha(0.1f)
         )
-    }
-}
-
-/**
- * 动画播放器区域
- *
- * 显示播放状态或完成状态，实际视频播放由 VideoPlayerOverlay 全屏覆盖层处理
- *
- * @param isPlaying 是否正在播放
- * @param isCompleted 是否已完成
- * @param onPlaybackComplete 播放完成回调
- */
-@Composable
-private fun AnimationPlayerArea(
-    isPlaying: Boolean,
-    isCompleted: Boolean,
-    onPlaybackComplete: () -> Unit
-) {
-    // 未播放时的动画效果
-    val infiniteTransition = rememberInfiniteTransition(label = "animationArea")
-
-    // 电影图标跳动
-    val movieScale by infiniteTransition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "movieScale"
-    )
-
-    // 加载点闪烁
-    val dotAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "dotAlpha"
-    )
-
-    Box(
-        modifier = Modifier
-            .width(320.dp)
-            .height(240.dp)
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = Color(0xFFFF6B6B)
-            )
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isPlaying) {
-            // 播放中提示 - 实际视频由全屏覆盖层播放
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "🎬",
-                    fontSize = 64.sp
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "正在播放动画...",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF457B9D)
-                )
-                // 加载动画点
-                Row(
-                    modifier = Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    repeat(3) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(
-                                    Color(0xFF457B9D),
-                                    shape = CircleShape
-                                )
-                                .alpha(dotAlpha)
-                        )
-                    }
-                }
-            }
-        } else if (isCompleted) {
-            // 已完成状态
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "✅",
-                    fontSize = 64.sp
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "动画已观看完成",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2A9D8F)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "你获得了学校徽章！",
-                    fontSize = 16.sp,
-                    color = Color(0xFF2A9D8F)
-                )
-            }
-        } else {
-            // 未开始状态 - 增强视觉效果
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                // 跳动的电影图标
-                Text(
-                    text = "🎬",
-                    fontSize = 56.sp,
-                    modifier = Modifier.scale(movieScale)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "即将播放消防安全动画",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF457B9D)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // 描述文字
-                Text(
-                    text = "小朋友发现火 → 打119 → 消防车到达\n→ 喷水灭火 → 老师带大家离开",
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 倒计时提示
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "⏱️",
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = "即将开始...",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFE63946)
-                    )
-                }
-            }
-        }
     }
 }
 
 /**
  * 视频播放全屏覆盖层
- *
- * 使用与 FireStationScreen 相同的全屏覆盖模式播放视频
- * 确保视频画面正常显示
- *
- * @param onPlaybackComplete 播放完成回调
  */
 @Composable
 private fun VideoPlayerOverlay(
+    videoPath: String,
     onPlaybackComplete: () -> Unit
 ) {
     Box(
@@ -638,10 +759,10 @@ private fun VideoPlayerOverlay(
         contentAlignment = Alignment.Center
     ) {
         VideoPlayer(
-            videoPath = "videos/School_Fire_Safety_Knowledge.mp4",
+            videoPath = videoPath,
             modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .padding(32.dp),
+                .fillMaxWidth(0.9f)
+                .padding(24.dp),
             onPlaybackCompleted = onPlaybackComplete,
             autoPlay = true,
             showControls = false
@@ -651,11 +772,6 @@ private fun VideoPlayerOverlay(
 
 /**
  * 徽章收集动画覆盖层
- *
- * 显示小火点赞动画 + 徽章获得提示
- *
- * @param show 是否显示
- * @param onAnimationComplete 动画完成回调
  */
 @Composable
 private fun BadgeAnimationOverlay(
@@ -664,82 +780,114 @@ private fun BadgeAnimationOverlay(
 ) {
     AnimatedVisibility(
         visible = show,
-        enter = scaleIn() + fadeIn(),
-        exit = scaleOut() + fadeOut()
+        enter = expandIn(expandFrom = Alignment.Center) + fadeIn(),
+        exit = shrinkOut(shrinkTowards = Alignment.Center) + fadeOut()
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.7f)),
+                .background(Color.Black.copy(alpha = 0.75f)),
             contentAlignment = Alignment.Center
         ) {
+            // 弹跳动画
+            val infiniteTransition = rememberInfiniteTransition(label = "badgeAnimation")
+
+            val badgeScale by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(800, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "badgeScale"
+            )
+
+            val rotateAngle by infiniteTransition.animateFloat(
+                initialValue = -5f,
+                targetValue = 5f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "rotateAngle"
+            )
+
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 小火点赞动画（占位符）
+                // 小火点赞
                 Text(
                     text = "🐯",
-                    fontSize = 100.sp
+                    fontSize = 100.sp,
+                    modifier = Modifier.rotate(rotateAngle)
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 // 点赞手势
                 Text(
                     text = "👍",
-                    fontSize = 60.sp
+                    fontSize = 70.sp
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 徽章图标
+                // 徽章（带动画）
                 Text(
                     text = "🏅",
-                    fontSize = 80.sp
+                    fontSize = 100.sp,
+                    modifier = Modifier.scale(badgeScale)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
+                // 赞美文字
                 Text(
                     text = "你真棒！",
-                    fontSize = 32.sp,
+                    fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
                     text = "记住，着火要找大人帮忙！",
-                    fontSize = 20.sp,
-                    color = Color.Yellow
+                    fontSize = 24.sp,
+                    color = Color.Yellow,
+                    textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "获得学校徽章！",
-                    fontSize = 24.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFFD700)
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 点击继续
-                Text(
-                    text = "点击继续",
-                    fontSize = 18.sp,
-                    color = Color.White,
+                // 点击继续按钮
+                Box(
                     modifier = Modifier
-                        .shadow(4.dp, CircleShape)
+                        .shadow(8.dp, RoundedCornerShape(32.dp))
                         .background(
                             Color(0xFF457B9D),
-                            shape = RoundedCornerShape(24.dp)
+                            shape = RoundedCornerShape(32.dp)
                         )
-                        .padding(horizontal = 32.dp, vertical = 12.dp)
-                        .clickable(onClick = onAnimationComplete)
-                )
+                        .padding(horizontal = 48.dp, vertical = 16.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onAnimationComplete
+                        )
+                ) {
+                    Text(
+                        text = "点击继续 ▶",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }

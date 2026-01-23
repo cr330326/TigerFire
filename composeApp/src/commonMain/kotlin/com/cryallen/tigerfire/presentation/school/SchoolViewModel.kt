@@ -23,6 +23,12 @@ import kotlinx.coroutines.launch
  *
  * 管理学校场景页面的状态和事件处理
  *
+ * 交互流程：
+ * 1. 进入场景 → 启动警报效果 + 播放语音提示
+ * 2. 用户点击播放按钮 → 停止警报 + 播放视频
+ * 3. 视频播放完成 → 颁发徽章 + 解锁森林 + 播放赞美语音
+ * 4. 语音播放完成 → 导航回主地图
+ *
  * @param viewModelScope 协程作用域（由平台层注入）
  * @param progressRepository 进度仓储接口
  * @param resourcePathProvider 资源路径提供者
@@ -63,6 +69,15 @@ class SchoolViewModel(
     companion object {
         /** 学校场景徽章基础类型 */
         const val SCHOOL_BADGE_BASE_TYPE = "school"
+
+        /** 视频资源名称 */
+        const val VIDEO_NAME = "School_Fire_Safety_Knowledge"
+
+        /** 警报语音路径 */
+        const val VOICE_FIRE_ALERT = "voice/school_fire.mp3"
+
+        /** 赞美语音路径 */
+        const val VOICE_PRAISE = "voice/school_praise.mp3"
     }
 
     // ==================== 初始化 ====================
@@ -97,7 +112,9 @@ class SchoolViewModel(
     fun onEvent(event: SchoolEvent) {
         when (event) {
             is SchoolEvent.ScreenEntered -> handleScreenEntered()
-            is SchoolEvent.AnimationPlaybackCompleted -> handleAnimationCompleted()
+            is SchoolEvent.PlayButtonClicked -> handlePlayButtonClicked()
+            is SchoolEvent.VideoPlaybackCompleted -> handleVideoCompleted()
+            is SchoolEvent.VoicePlaybackCompleted -> handleVoiceCompleted()
             is SchoolEvent.BackToMapClicked -> handleBackToMap()
             is SchoolEvent.BadgeAnimationCompleted -> handleBadgeAnimationCompleted()
         }
@@ -105,6 +122,8 @@ class SchoolViewModel(
 
     /**
      * 处理页面进入
+     *
+     * 启动警报效果（音效 + 红光闪烁）+ 播放语音提示
      */
     private fun handleScreenEntered() {
         // 报告用户活动，重置空闲计时器
@@ -118,27 +137,73 @@ class SchoolViewModel(
             return
         }
 
-        // 获取视频资源路径
-        val videoPath = resourcePathProvider.getVideoPath("school/school_story.mp4")
-
-        // 更新状态为正在播放
+        // 更新状态：显示警报效果和播放按钮
         _state.value = _state.value.copy(
-            isPlayingAnimation = true
+            showAlarmEffect = true,
+            showPlayButton = true,
+            isAlarmPlaying = true
         )
 
-        // 发送播放动画副作用
-        sendEffect(SchoolEffect.PlayAnimation(videoPath))
+        // 发送启动警报效果副作用
+        sendEffect(SchoolEffect.StartAlarmEffects)
+
+        // 发送播放语音副作用："学校着火啦！快叫消防车！"
+        sendEffect(SchoolEffect.PlayVoice(VOICE_FIRE_ALERT))
     }
 
     /**
-     * 处理动画播放完成
+     * 处理播放按钮点击
+     *
+     * 停止警报效果，开始播放视频
      */
-    private fun handleAnimationCompleted() {
+    private fun handlePlayButtonClicked() {
         val currentState = _state.value
 
-        // 更新状态：结束播放
+        // 仅在显示播放按钮时允许点击
+        if (!currentState.showPlayButton || currentState.isVideoPlaying) {
+            return
+        }
+
+        // 报告用户活动
+        idleTimer.reportActivity()
+
+        // 检测快速点击
+        if (rapidClickGuard.checkClick()) {
+            sendEffect(SchoolEffect.PlaySlowDownVoice)
+            rapidClickGuard.reset()
+            return
+        }
+
+        // 获取视频资源路径
+        val videoPath = resourcePathProvider.getVideoPath(VIDEO_NAME)
+
+        // 更新状态：隐藏播放按钮，停止警报，开始播放视频，保存视频路径
         _state.value = currentState.copy(
-            isPlayingAnimation = false
+            showPlayButton = false,
+            showAlarmEffect = false,
+            isVideoPlaying = true,
+            isAlarmPlaying = false,
+            currentVideoPath = videoPath  // 保存视频路径到状态中
+        )
+
+        // 发送停止警报效果副作用
+        sendEffect(SchoolEffect.StopAlarmEffects)
+
+        // 发送播放视频副作用
+        sendEffect(SchoolEffect.PlayVideo(videoPath))
+    }
+
+    /**
+     * 处理视频播放完成
+     *
+     * 颁发徽章，解锁森林场景，播放赞美语音
+     */
+    private fun handleVideoCompleted() {
+        val currentState = _state.value
+
+        // 更新状态：视频播放结束
+        _state.value = currentState.copy(
+            isVideoPlaying = false
         )
 
         viewModelScope.launch {
@@ -169,7 +234,8 @@ class SchoolViewModel(
 
                 // 更新本地状态
                 _state.value = currentState.copy(
-                    isCompleted = true
+                    isCompleted = true,
+                    showBadgeAnimation = true
                 )
 
                 // 发送徽章动画和音效副作用
@@ -179,22 +245,71 @@ class SchoolViewModel(
 
                 // 发送解锁森林场景副作用
                 sendEffect(SchoolEffect.UnlockForestScene)
+
+                // 发送播放赞美语音副作用："你真棒！记住，着火要找大人帮忙！"
+                sendEffect(SchoolEffect.PlayVoice(VOICE_PRAISE))
             } else {
-                // 重复观看，不重复发放徽章
-                // 可以播放普通完成音效
+                // 重复观看，播放普通完成音效，不重复发放徽章
+                sendEffect(SchoolEffect.PlayCompletedSound)
+                sendEffect(SchoolEffect.PlayVoice(VOICE_PRAISE))
+
+                _state.value = currentState.copy(
+                    showBadgeAnimation = true
+                )
             }
         }
     }
 
     /**
+     * 处理语音播放完成
+     *
+     * 赞美语音播放完毕
+     */
+    private fun handleVoiceCompleted() {
+        // 语音播放完成，等待用户点击徽章动画继续
+        // 不做额外处理，等待 BadgeAnimationCompleted 事件
+    }
+
+    /**
+     * 处理徽章动画完成
+     *
+     * 用户点击继续后触发，导航回主地图
+     */
+    private fun handleBadgeAnimationCompleted() {
+        _state.value = _state.value.copy(
+            showBadgeAnimation = false
+        )
+
+        // 延迟一小段时间后导航
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(500)
+            sendEffect(SchoolEffect.NavigateToMap)
+        }
+    }
+
+    /**
      * 处理返回主地图按钮点击
+     *
+     * 仅在视频未播放时允许返回
      */
     private fun handleBackToMap() {
+        val currentState = _state.value
+
+        // 视频播放中禁止返回
+        if (currentState.isVideoPlaying) {
+            return
+        }
+
         // 报告用户活动
         idleTimer.reportActivity()
 
         // 停止空闲检测
         idleTimer.stopIdleDetection()
+
+        // 停止警报效果
+        if (currentState.isAlarmPlaying) {
+            sendEffect(SchoolEffect.StopAlarmEffects)
+        }
 
         sendEffect(SchoolEffect.NavigateToMap)
     }
@@ -206,15 +321,6 @@ class SchoolViewModel(
      */
     private fun onIdleTimeout() {
         sendEffect(SchoolEffect.ShowIdleHint)
-    }
-
-    /**
-     * 处理徽章收集动画完成
-     */
-    private fun handleBadgeAnimationCompleted() {
-        _state.value = _state.value.copy(
-            showBadgeAnimation = false
-        )
     }
 
     // ==================== 辅助方法 ====================
