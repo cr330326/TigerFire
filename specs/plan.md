@@ -6,10 +6,10 @@
 
 | 属性 | 值 |
 |------|-----|
-| **文档版本** | v1.1 |
+| **文档版本** | v1.2 |
 | **创建日期** | 2026-01-19 |
-| **更新日期** | 2026-01-21 |
-| **更新内容** | 完善启动页流程，增加语音播放、全屏点击、首次使用初始化逻辑
+| **更新日期** | 2026-01-23 |
+| **更新内容** | 更新学校场景流程，增加警报效果、播放按钮交互、语音提示 |
 | **适用范围** | 完整 App 功能实现 |
 | **技术栈** | Kotlin Multiplatform Mobile (KMM) |
 | **架构模式** | Clean Architecture + MVVM |
@@ -422,7 +422,42 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 - 视频播放中：禁止其他设备点击（图标变灰）
 - 解锁判定：`fireStationCompletedItems.size == 4` 时触发 `UnlockSceneUseCase(SCHOOL)`
 
-### 4.3 森林救援流程
+### 4.3 学校场景流程（剧情动画）
+
+**步骤**：
+1. 从主地图点击学校图标 → 播放转场动画 → 进入学校场景
+2. 进入后自动触发：
+   - **警报音效播放**（循环播放，视频开始后停止）
+   - **屏幕边缘红光闪烁**（柔和脉冲动画，非刺眼）
+   - **小火语音提示**："学校着火啦！快叫消防车！"
+3. 显示**超大播放按钮图标**（屏幕中央，≥150pt），提示用户点击播放视频
+4. 用户点击播放按钮 → 警报音效停止 → 红光停止闪烁
+5. 播放剧情视频 `School_Fire_Safety_Knowledge.mp4`
+6. 视频播放完毕：
+   - 弹出小火点赞动画（Lottie）
+   - 播放语音："你真棒！记住，着火要找大人帮忙！"
+   - 弹出 1 枚徽章 + 播放成功音效
+   - 解锁森林场景
+7. 徽章动画完成后自动返回主地图
+
+**关键判定逻辑**：
+- 进入场景时自动播放警报和闪烁效果
+- 播放按钮仅在视频未播放时可见
+- 视频播放中禁用返回按钮
+- 视频播放完毕触发徽章颁发 + 场景解锁
+
+**状态管理**：
+```kotlin
+data class SchoolState(
+    val showAlarmEffect: Boolean = true,      // 是否显示警报效果
+    val showPlayButton: Boolean = true,       // 是否显示播放按钮
+    val isVideoPlaying: Boolean = false,      // 视频是否正在播放
+    val showBadgeAnimation: Boolean = false,  // 是否显示徽章动画
+    val isCompleted: Boolean = false          // 是否已完成
+)
+```
+
+### 4.4 森林救援流程
 
 **步骤**：
 1. 进入森林场景 → 播放警报音效 + 小火语音提示
@@ -440,7 +475,7 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 - 吸附判定：每帧检测直升机中心与小羊中心距离，触发阈值 80pt
 - 中断处理：拖拽过程中抬手 → 直升机停在当前位置，不回退
 
-### 4.4 徽章收集与彩蛋解锁流程
+### 4.5 徽章收集与彩蛋解锁流程
 
 **徽章展示**：
 1. 点击主地图"我的收藏"按钮 → 进入徽章展示页
@@ -453,7 +488,7 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 - 触发时机：进入收藏页时检测，满足条件自动播放彩蛋动画
 - 彩蛋内容：小火跳舞 + 放烟花（Lottie 动画，20 秒）
 
-### 4.5 家长模式时间控制流程
+### 4.6 家长模式时间控制流程
 
 **时间追踪**：
 1. App 进入前台 → 开始计时
@@ -489,9 +524,50 @@ ViewModel **不负责**：
 - 平台特定功能（如动画实现、音频播放细节）
 - 直接操作 Repository（必须通过 UseCase）
 
-### 5.2 State / Event / Effect 划分原则
+### 5.2 学校场景 State / Event / Effect 设计
 
-#### 5.2.1 State（状态）
+学校场景需要新增**点击播放视频**的交互，状态设计如下：
+
+```kotlin
+// SchoolState
+data class SchoolState(
+    val showAlarmEffect: Boolean = true,      // 是否显示警报效果（红光闪烁）
+    val showPlayButton: Boolean = true,       // 是否显示播放按钮
+    val isVideoPlaying: Boolean = false,      // 视频是否正在播放
+    val showBadgeAnimation: Boolean = false,  // 是否显示徽章动画
+    val isCompleted: Boolean = false          // 是否已完成
+)
+
+// SchoolEvent
+sealed class SchoolEvent {
+    object PlayButtonClicked : SchoolEvent()        // 用户点击播放按钮
+    object VideoPlaybackCompleted : SchoolEvent()   // 视频播放完成
+    object VoicePlaybackCompleted : SchoolEvent()   // 语音播放完成
+    object BadgeAnimationCompleted : SchoolEvent()  // 徽章动画完成
+    object BackPressed : SchoolEvent()              // 用户点击返回（视频播放中禁用）
+}
+
+// SchoolEffect
+sealed class SchoolEffect {
+    object StartAlarmEffects : SchoolEffect()                   // 启动警报效果（音效+红光）
+    object StopAlarmEffects : SchoolEffect()                    // 停止警报效果
+    data class PlayVideo(val videoPath: String) : SchoolEffect() // 播放视频
+    data class ShowBadgeReward(val badge: Badge) : SchoolEffect() // 显示徽章奖励
+    data class PlayVoice(val voicePath: String) : SchoolEffect() // 播放语音
+    object UnlockForestScene : SchoolEffect()                   // 解锁森林场景
+    object NavigateToMap : SchoolEffect()                       // 导航至主地图
+}
+```
+
+**流程说明**：
+1. 进入场景 → 发送 `StartAlarmEffects` Effect
+2. 用户点击播放按钮 → 发送 `StopAlarmEffects` + `PlayVideo`
+3. 视频播放完成 → 颁发徽章 + 解锁森林 + 播放语音
+4. 语音播放完成 → 导航回主地图
+
+### 5.3 State / Event / Effect 划分原则
+
+#### 5.3.1 State（状态）
 
 **定义**：UI 当前需要展示的所有数据快照，必须完整且自包含。
 
@@ -511,7 +587,7 @@ data class FireStationState(
 - 所有字段应有合理默认值
 - State 应完整描述 UI，UI 不应维护额外状态
 
-#### 5.2.2 Event（事件）
+#### 5.3.2 Event（事件）
 
 **定义**：用户或系统触发的动作，表达"发生了什么"。
 
@@ -530,7 +606,7 @@ sealed class FireStationEvent {
 - Event 应携带必要参数（如 `deviceId`）
 - Event 命名使用过去式或动作型动词
 
-#### 5.2.3 Effect（副作用）
+#### 5.3.3 Effect（副作用）
 
 **定义**：一次性执行的操作，不影响 State 持久状态。
 
@@ -549,7 +625,7 @@ sealed class FireStationEffect {
 - 典型场景：导航、播放音效、显示 Toast、触发动画
 - UI 层订阅 Effect 并执行对应操作后即丢弃
 
-### 5.3 UI 订阅与事件触发模式
+### 5.4 UI 订阅与事件触发模式
 
 **订阅模式**：
 ```kotlin

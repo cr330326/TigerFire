@@ -6,11 +6,11 @@
 
 | 属性 | 值 |
 |------|-----|
-| **文档版本** | v1.1 |
+| **文档版本** | v1.2 |
 | **创建日期** | 2026-01-19 |
-| **更新日期** | 2026-01-21 |
-| **更新内容** | 完善启动页相关任务（3.1, 4.2, 5.2），增加语音播放、音效、全屏交互、降级策略说明
-| **基于方案** | plan.md v1.0 |
+| **更新日期** | 2026-01-23 |
+| **更新内容** | 更新学校场景任务（3.4, 4.5, 5.5），增加警报效果、播放按钮交互、语音提示等新流程 |
+| **基于方案** | plan.md v1.1 |
 | **遵循规范** | constitution.md > CLAUDE.md > plan.md > spec.md |
 
 ---
@@ -19,7 +19,7 @@
 
 ### 1.1 拆解依据
 
-本 tasks.md 基于 `plan.md v1.0` 中定义的技术方案进行拆解，严格遵循以下原则：
+本 tasks.md 基于 `plan.md v1.1` 中定义的技术方案进行拆解，严格遵循以下原则：
 
 - **不推翻设计**：所有任务执行 plan.md 中已确定的架构决策
 - **可独立完成**：每条任务可被单独领取、实现、测试
@@ -638,22 +638,31 @@
 
 **任务说明**：
 - 定义 `SchoolState`：
-  - `isVideoPlaying: Boolean`
-  - `showBadgeAnimation: Boolean`
-  - `isCompleted: Boolean`
+  - `showAlarmEffect: Boolean`（是否显示警报效果）
+  - `showPlayButton: Boolean`（是否显示播放按钮）
+  - `isVideoPlaying: Boolean`（视频是否正在播放）
+  - `showBadgeAnimation: Boolean`（是否显示徽章动画）
+  - `isCompleted: Boolean`（是否已完成）
 - 定义 `SchoolEvent`：
-  - `VideoPlaybackCompleted`
-  - `BadgeAnimationCompleted`
-  - `BackPressed`
+  - `PlayButtonClicked`（用户点击播放按钮）
+  - `VideoPlaybackCompleted`（视频播放完成）
+  - `VoicePlaybackCompleted`（语音播放完成）
+  - `BadgeAnimationCompleted`（徽章动画完成）
+  - `BackPressed`（用户点击返回）
 - 定义 `SchoolEffect`：
-  - `PlayVideo(videoPath: String)`
-  - `ShowBadgeReward(badge: Badge)`
-  - `UnlockForestScene`
-  - `NavigateToMap`
+  - `StartAlarmEffects`（启动警报效果：音效+红光）
+  - `StopAlarmEffects`（停止警报效果）
+  - `PlayVideo(videoPath: String)`（播放视频）
+  - `PlayVoice(voicePath: String)`（播放语音）
+  - `ShowBadgeReward(badge: Badge)`（显示徽章奖励）
+  - `UnlockForestScene`（解锁森林场景）
+  - `NavigateToMap`（导航至主地图）
 - 实现 ViewModel：
-  - 进入场景自动播放视频
-  - 视频播放完毕后颁发徽章
-  - 自动解锁森林场景
+  - 进入场景发送 `StartAlarmEffects` Effect
+  - 处理播放按钮点击 → 发送 `StopAlarmEffects` + `PlayVideo`
+  - 视频播放完毕后颁发徽章 + 解锁森林 + 播放语音
+  - 语音播放完毕后导航回主地图
+  - 视频播放中禁用返回按钮
 - 验证：ViewModel 可正确管理学校场景流程
 
 **新增文件**：
@@ -661,6 +670,9 @@
 - `shared/presentation/school/SchoolState.kt`
 - `shared/presentation/school/SchoolEvent.kt`
 - `shared/presentation/school/SchoolEffect.kt`
+
+**视频资源**：`School_Fire_Safety_Knowledge.mp4`
+**语音资源**：`voice_school_fire_alert.mp3`（"学校着火啦！"）+ `voice_school_praise.mp3`（"你真棒！记住，着火要找大人帮忙！"）
 
 ---
 
@@ -916,15 +928,40 @@
 
 **任务说明**：
 - 创建 `@Composable fun SchoolScreen(viewModel: SchoolViewModel)`
-- 自动播放剧情视频（45 秒）
-- 播放警报音效与屏幕红光闪烁
-- 视频播放完毕发送 `VideoPlaybackCompleted` 事件
-- 显示小火点赞动画（Lottie）
-- 订阅 `viewModel.effect` 处理徽章、解锁、导航
-- 验证：学校场景可正常播放
+- **警报效果实现**：
+  - 进入场景订阅 `StartAlarmEffects` Effect：
+    - 播放警报音效（循环播放）
+    - 屏幕边缘红光闪烁（使用 `Modifier.drawBehind` 绘制红色半透明边框，配合 `animateFloatAsState` 实现脉冲动画）
+  - 播放语音："学校着火啦！快叫消防车！"
+- **播放按钮**：
+  - 屏幕中央显示超大播放按钮图标（≥150pt）
+  - 仅当 `state.showPlayButton` 为 true 且视频未播放时显示
+  - 点击发送 `PlayButtonClicked` 事件
+- **视频播放**：
+  - 订阅 `PlayVideo` Effect → 集成 `VideoPlayer` 组件
+  - 播放 `School_Fire_Safety_Knowledge.mp4`
+  - 视频播放完毕发送 `VideoPlaybackCompleted` 事件
+- **完成后效果**：
+  - 显示小火点赞动画（Lottie）
+  - 播放语音："你真棒！记住，着火要找大人帮忙！"
+  - 显示徽章获得动画
+  - 语音播放完毕发送 `VoicePlaybackCompleted` 事件
+- **返回按钮**：
+  - 视频播放中禁用返回按钮
+  - 其他状态下正常返回主地图
+- 订阅 `viewModel.effect` 处理所有效果
+- 验证：学校场景完整流程可正常运行
 
 **新增文件**：
 - `androidApp/src/main/java/com/tigertruck/ui/school/SchoolScreen.kt`
+
+**资源文件准备**：
+- `assets/videos/School_Fire_Safety_Knowledge.mp4`（学校消防安全知识视频）
+- `assets/audio/sfx_school_alarm.mp3`（警报音效，循环播放）
+- `assets/audio/voice_school_fire_alert.mp3`（"学校着火啦！快叫消防车！"）
+- `assets/audio/voice_school_praise.mp3`（"你真棒！记住，着火要找大人帮忙！"）
+- `assets/lottie/anim_xiaohuo_thumbsup.json`（小火点赞动画）
+- `res/drawable/ic_play_button.xml`（超大播放按钮图标，红色渐变圆形 + 播放三角形）
 
 ---
 
@@ -1186,15 +1223,40 @@
 
 **任务说明**：
 - 创建 `struct SchoolView: View`
-- 自动播放剧情视频（45 秒）
-- 播放警报音效与屏幕红光闪烁
-- 视频播放完毕发送 Event
-- 显示小火点赞动画（Lottie）
-- 订阅 Effect 处理徽章、解锁、导航
-- 验证：学校场景可正常播放
+- **警报效果实现**：
+  - 进入场景订阅 `StartAlarmEffects` Effect：
+    - 播放警报音效（使用 `AVAudioPlayer` 循环播放）
+    - 屏幕边缘红光闪烁（使用 `.overlay()` + `ZStack` 配合红色半透明矩形 + `opacity` 动画实现脉冲效果）
+  - 播放语音："学校着火啦！快叫消防车！"
+- **播放按钮**：
+  - 屏幕中央显示超大播放按钮图标（≥150pt）
+  - 使用 `Image(systemName: "play.circle.fill")` 或自定义图标
+  - 仅当 `state.showPlayButton` 为 true 且视频未播放时显示
+  - 点击发送 `PlayButtonClicked` 事件
+- **视频播放**：
+  - 订阅 `PlayVideo` Effect → 集成 `VideoPlayerView` 组件
+  - 播放 `School_Fire_Safety_Knowledge.mp4`
+  - 视频播放完毕发送 `VideoPlaybackCompleted` 事件
+- **完成后效果**：
+  - 显示小火点赞动画（Lottie）
+  - 播放语音："你真棒！记住，着火要找大人帮忙！"
+  - 显示徽章获得动画
+  - 语音播放完毕发送 `VoicePlaybackCompleted` 事件
+- **返回按钮**：
+  - 视频播放中禁用返回按钮（`.disabled()`）
+  - 其他状态下正常返回主地图
+- 订阅 Effect 处理所有效果
+- 验证：学校场景完整流程可正常运行
 
 **新增文件**：
 - `iosApp/TigerFire/UI/SchoolView/SchoolView.swift`
+
+**资源文件准备**：
+- `School_Fire_Safety_Knowledge.mp4`（学校消防安全知识视频）
+- `sfx_school_alarm.mp3`（警报音效，循环播放）
+- `voice_school_fire_alert.mp3`（"学校着火啦！快叫消防车！"）
+- `voice_school_praise.mp3`（"你真棒！记住，着火要找大人帮忙！"）
+- `anim_xiaohuo_thumbsup.json`（小火点赞动画）
 
 ---
 
@@ -1579,5 +1641,5 @@
 
 **文档结束**
 
-> 本 tasks.md 基于 plan.md v1.0 严格拆解，每条任务均可独立完成、独立测试、独立验收。
+> 本 tasks.md 基于 plan.md v1.1 严格拆解，每条任务均可独立完成、独立测试、独立验收。
 > 请按照阶段顺序执行，确保依赖关系正确。
