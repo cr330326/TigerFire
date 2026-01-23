@@ -40,7 +40,9 @@ import java.io.File
  * @param onPlaybackCompleted 播放完成回调
  * @param onPlaybackError 播放错误回调
  * @param autoPlay 是否自动播放，默认为 true
+ * @param showControls 是否显示播放控制器，默认为 false
  * @param loopMode 是否循环播放，默认为 false
+ * @param isPaused 是否暂停播放，默认为 false
  */
 @Composable
 fun VideoPlayer(
@@ -50,7 +52,8 @@ fun VideoPlayer(
     onPlaybackError: (Exception) -> Unit = {},
     autoPlay: Boolean = true,
     showControls: Boolean = false,
-    loopMode: Boolean = false
+    loopMode: Boolean = false,
+    isPaused: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -125,6 +128,17 @@ fun VideoPlayer(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.release()
+        }
+    }
+
+    // 监听 isPaused 状态变化，控制 ExoPlayer 的暂停/播放
+    LaunchedEffect(isPaused) {
+        if (isPaused) {
+            exoPlayer.pause()
+            isPlaying = false
+        } else {
+            exoPlayer.play()
+            isPlaying = true
         }
     }
 

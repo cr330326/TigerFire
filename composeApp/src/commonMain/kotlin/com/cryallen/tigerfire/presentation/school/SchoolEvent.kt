@@ -49,9 +49,33 @@ sealed class SchoolEvent {
     data object BadgeAnimationCompleted : SchoolEvent()
 
     /**
+     * 关闭徽章动画
+     *
+     * 用户点击徽章动画背景关闭，返回播放按钮界面
+     */
+    data object CloseBadgeAnimation : SchoolEvent()
+
+    /**
      * 返回主地图按钮点击
      *
      * 仅在视频未播放时允许返回
      */
     data object BackToMapClicked : SchoolEvent()
+
+    /**
+     * 暂停视频按钮点击
+     */
+    data object PauseVideoClicked : SchoolEvent()
+
+    /**
+     * 恢复视频按钮点击
+     */
+    data object ResumeVideoClicked : SchoolEvent()
+
+    /**
+     * 退出视频按钮点击
+     *
+     * 中断视频播放，返回播放按钮界面
+     */
+    data object ExitVideoClicked : SchoolEvent()
 }

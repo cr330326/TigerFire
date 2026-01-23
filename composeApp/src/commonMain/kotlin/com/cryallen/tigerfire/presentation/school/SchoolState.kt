@@ -28,6 +28,16 @@ data class SchoolState(
     val isVideoPlaying: Boolean = false,
 
     /**
+     * 视频是否暂停
+     */
+    val isVideoPaused: Boolean = false,
+
+    /**
+     * 是否显示视频控制按钮
+     */
+    val showVideoControls: Boolean = true,
+
+    /**
      * 是否显示徽章收集动画
      */
     val showBadgeAnimation: Boolean = false,

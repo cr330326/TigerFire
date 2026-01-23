@@ -234,6 +234,18 @@ fun SchoolScreen(
         if (state.isVideoPlaying) {
             VideoPlayerOverlay(
                 videoPath = state.currentVideoPath,
+                isPaused = state.isVideoPaused,
+                showControls = state.showVideoControls,
+                onPauseToggle = {
+                    if (state.isVideoPaused) {
+                        viewModel.onEvent(SchoolEvent.ResumeVideoClicked)
+                    } else {
+                        viewModel.onEvent(SchoolEvent.PauseVideoClicked)
+                    }
+                },
+                onExit = {
+                    viewModel.onEvent(SchoolEvent.ExitVideoClicked)
+                },
                 onPlaybackComplete = {
                     viewModel.onEvent(SchoolEvent.VideoPlaybackCompleted)
                 }
@@ -245,6 +257,9 @@ fun SchoolScreen(
             show = state.showBadgeAnimation,
             onAnimationComplete = {
                 viewModel.onEvent(SchoolEvent.BadgeAnimationCompleted)
+            },
+            onClose = {
+                viewModel.onEvent(SchoolEvent.CloseBadgeAnimation)
             }
         )
     }
@@ -289,7 +304,7 @@ private fun TopBar(
 
         // 场景标题
         Text(
-            text = "🏫 学校",
+            text = "🏫",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
@@ -731,16 +746,6 @@ private fun SchoolBackgroundEnhanced() {
                     .alpha(starAlpha1 * 0.15f)
             )
         }
-
-        // 顶部小火老虎提示
-        Text(
-            text = "🐯",
-            fontSize = 40.sp,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 60.dp)
-                .alpha(0.1f)
-        )
     }
 }
 
@@ -750,33 +755,150 @@ private fun SchoolBackgroundEnhanced() {
 @Composable
 private fun VideoPlayerOverlay(
     videoPath: String,
+    isPaused: Boolean,
+    showControls: Boolean,
+    onPauseToggle: () -> Unit,
+    onExit: () -> Unit,
     onPlaybackComplete: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.9f)),
-        contentAlignment = Alignment.Center
+            .background(Color.Black.copy(alpha = 0.9f))
     ) {
+        // 视频播放器居中
         VideoPlayer(
             videoPath = videoPath,
             modifier = Modifier
+                .align(Alignment.Center)
                 .fillMaxWidth(0.9f)
                 .padding(24.dp),
             onPlaybackCompleted = onPlaybackComplete,
             autoPlay = true,
-            showControls = false
+            showControls = false,
+            isPaused = isPaused
+        )
+
+        // 视频控制栏在底部
+        if (showControls) {
+            VideoControlsBar(
+                isPaused = isPaused,
+                onPauseToggle = onPauseToggle,
+                onExit = onExit,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+    }
+}
+
+/**
+ * 视频控制栏
+ *
+ * 提供暂停/播放和退出按钮
+ */
+@Composable
+private fun VideoControlsBar(
+    isPaused: Boolean,
+    onPauseToggle: () -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 播放/暂停按钮
+        ControlButton(
+            icon = if (isPaused) "▶" else "⏸",
+            contentDescription = if (isPaused) "播放" else "暂停",
+            onClick = onPauseToggle
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // 退出按钮
+        ControlButton(
+            icon = "✕",
+            contentDescription = "退出",
+            onClick = onExit
+        )
+    }
+}
+
+/**
+ * 控制按钮
+ *
+ * 大尺寸圆形按钮，适合儿童点击
+ */
+@Composable
+private fun ControlButton(
+    icon: String,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "controlButton")
+
+    // 脉冲动画
+    val buttonScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "buttonPulse"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(72.dp)
+            .scale(buttonScale)
+            .shadow(
+                elevation = 8.dp,
+                spotColor = Color.White.copy(alpha = 0.5f),
+                shape = CircleShape
+            )
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF457B9D),
+                        Color(0xFF5CA0C3)
+                    )
+                ),
+                shape = CircleShape
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = icon,
+            fontSize = 32.sp,
+            color = Color.White
         )
     }
 }
 
 /**
  * 徽章收集动画覆盖层
+ *
+ * 参考消防站场景的精美设计，添加：
+ * - 渐变背景（红→橙→黄）
+ * - 弹性缩放动画
+ * - 星星和彩带装饰
+ * - 脉冲按钮效果
  */
 @Composable
 private fun BadgeAnimationOverlay(
     show: Boolean,
-    onAnimationComplete: () -> Unit
+    onAnimationComplete: () -> Unit,
+    onClose: () -> Unit
 ) {
     AnimatedVisibility(
         visible = show,
@@ -786,41 +908,125 @@ private fun BadgeAnimationOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.75f)),
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClose
+                )
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFE63946).copy(alpha = 0.9f),  // 红
+                            Color(0xFFF77F00).copy(alpha = 0.9f),  // 橙
+                            Color(0xFFFCBF49).copy(alpha = 0.9f)   // 黄
+                        )
+                    )
+                ),
             contentAlignment = Alignment.Center
         ) {
-            // 弹跳动画
-            val infiniteTransition = rememberInfiniteTransition(label = "badgeAnimation")
-
-            val badgeScale by infiniteTransition.animateFloat(
-                initialValue = 1f,
-                targetValue = 1.1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(800, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
+            // 弹性缩放动画
+            val badgeScale by animateFloatAsState(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
                 ),
                 label = "badgeScale"
             )
 
-            val rotateAngle by infiniteTransition.animateFloat(
-                initialValue = -5f,
-                targetValue = 5f,
+            // 无限旋转动画
+            val infiniteTransition = rememberInfiniteTransition(label = "badgeAnimations")
+
+            val starRotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(4000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "starRotation"
+            )
+
+            val confettiRotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(6000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "confettiRotation"
+            )
+
+            val starAlpha by infiniteTransition.animateFloat(
+                initialValue = 0.4f,
+                targetValue = 1f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(1000, easing = FastOutSlowInEasing),
                     repeatMode = RepeatMode.Reverse
                 ),
-                label = "rotateAngle"
+                label = "starAlpha"
             )
 
+            // 按钮脉冲动画
+            val buttonPulse by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.08f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "buttonPulse"
+            )
+
+            // 背景装饰层
+            Box(modifier = Modifier.fillMaxSize()) {
+                // 星星装饰（4个角落）
+                listOf(
+                    Pair(Alignment.TopStart, Pair((-80).dp, (-80).dp)),
+                    Pair(Alignment.TopEnd, Pair(80.dp, (-80).dp)),
+                    Pair(Alignment.BottomStart, Pair((-80).dp, 80.dp)),
+                    Pair(Alignment.BottomEnd, Pair(80.dp, 80.dp)),
+                ).forEach { (alignment, offset) ->
+                    Text(
+                        text = "⭐",
+                        fontSize = 36.sp,
+                        modifier = Modifier
+                            .align(alignment)
+                            .offset(x = offset.component1(), y = offset.component2())
+                            .rotate(starRotation)
+                            .alpha(starAlpha)
+                    )
+                }
+
+                // 彩带装饰
+                listOf(
+                    Pair((-150).dp, (-100).dp),
+                    Pair(150.dp, (-120).dp),
+                    Pair((-120).dp, 100.dp),
+                    Pair(140.dp, 120.dp),
+                ).forEach { offset ->
+                    Text(
+                        text = "🎊",
+                        fontSize = 28.sp,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(x = offset.component1(), y = offset.component2())
+                            .rotate(confettiRotation)
+                            .alpha(0.6f)
+                    )
+                }
+            }
+
+            // 主内容层
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(32.dp)
             ) {
-                // 小火点赞
+                // 小火老虎
                 Text(
                     text = "🐯",
-                    fontSize = 100.sp,
-                    modifier = Modifier.rotate(rotateAngle)
+                    fontSize = 100.sp
                 )
 
                 // 点赞手势
@@ -829,37 +1035,38 @@ private fun BadgeAnimationOverlay(
                     fontSize = 70.sp
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // 徽章（带动画）
+                // 徽章（弹性缩放动画）
                 Text(
                     text = "🏅",
-                    fontSize = 100.sp,
+                    fontSize = 140.sp,
                     modifier = Modifier.scale(badgeScale)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // 赞美文字
                 Text(
                     text = "你真棒！",
-                    fontSize = 36.sp,
+                    fontSize = 42.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
 
                 Text(
                     text = "记住，着火要找大人帮忙！",
-                    fontSize = 24.sp,
-                    color = Color.Yellow,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFFFD93D),
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "获得学校徽章！",
-                    fontSize = 28.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFFD700)
                 )
@@ -869,24 +1076,40 @@ private fun BadgeAnimationOverlay(
                 // 点击继续按钮
                 Box(
                     modifier = Modifier
-                        .shadow(8.dp, RoundedCornerShape(32.dp))
-                        .background(
-                            Color(0xFF457B9D),
+                        .scale(buttonPulse)
+                        .shadow(
+                            elevation = 12.dp,
+                            spotColor = Color(0xFFFFD700).copy(alpha = 0.5f),
                             shape = RoundedCornerShape(32.dp)
                         )
-                        .padding(horizontal = 48.dp, vertical = 16.dp)
+                        .background(Color.White, shape = RoundedCornerShape(32.dp))
+                        .padding(horizontal = 56.dp, vertical = 20.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = onAnimationComplete
+                            onClick = {
+                                // 先关闭徽章动画，然后导航
+                                onClose()
+                                onAnimationComplete()
+                            }
                         )
                 ) {
-                    Text(
-                        text = "点击继续 ▶",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "点击继续",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE63946)
+                        )
+                        Text(
+                            text = "▶",
+                            fontSize = 20.sp,
+                            color = Color(0xFFE63946)
+                        )
+                    }
                 }
             }
         }

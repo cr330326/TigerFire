@@ -74,10 +74,10 @@ class SchoolViewModel(
         const val VIDEO_NAME = "School_Fire_Safety_Knowledge"
 
         /** 警报语音路径 */
-        const val VOICE_FIRE_ALERT = "voice/school_fire.mp3"
+        const val VOICE_FIRE_ALERT = "audio/voices/school_fire.mp3"
 
         /** 赞美语音路径 */
-        const val VOICE_PRAISE = "voice/school_praise.mp3"
+        const val VOICE_PRAISE = "audio/voices/school_praise.mp3"
     }
 
     // ==================== 初始化 ====================
@@ -117,6 +117,10 @@ class SchoolViewModel(
             is SchoolEvent.VoicePlaybackCompleted -> handleVoiceCompleted()
             is SchoolEvent.BackToMapClicked -> handleBackToMap()
             is SchoolEvent.BadgeAnimationCompleted -> handleBadgeAnimationCompleted()
+            is SchoolEvent.CloseBadgeAnimation -> handleCloseBadgeAnimation()
+            is SchoolEvent.PauseVideoClicked -> handlePauseVideo()
+            is SchoolEvent.ResumeVideoClicked -> handleResumeVideo()
+            is SchoolEvent.ExitVideoClicked -> handleExitVideo()
         }
     }
 
@@ -334,5 +338,99 @@ class SchoolViewModel(
         viewModelScope.launch {
             _effect.send(effect)
         }
+    }
+
+    /**
+     * 处理暂停视频
+     */
+    private fun handlePauseVideo() {
+        val currentState = _state.value
+
+        // 仅在视频正在播放时允许暂停
+        if (!currentState.isVideoPlaying || currentState.isVideoPaused) {
+            return
+        }
+
+        // 报告用户活动
+        idleTimer.reportActivity()
+
+        // 更新状态：暂停视频
+        _state.value = currentState.copy(
+            isVideoPaused = true
+        )
+    }
+
+    /**
+     * 处理恢复视频
+     */
+    private fun handleResumeVideo() {
+        val currentState = _state.value
+
+        // 仅在视频暂停时允许恢复
+        if (!currentState.isVideoPlaying || !currentState.isVideoPaused) {
+            return
+        }
+
+        // 报告用户活动
+        idleTimer.reportActivity()
+
+        // 更新状态：恢复视频播放
+        _state.value = currentState.copy(
+            isVideoPaused = false
+        )
+    }
+
+    /**
+     * 处理退出视频
+     *
+     * 中断视频播放，返回播放按钮界面
+     */
+    private fun handleExitVideo() {
+        val currentState = _state.value
+
+        // 仅在视频播放中允许退出
+        if (!currentState.isVideoPlaying) {
+            return
+        }
+
+        // 报告用户活动
+        idleTimer.reportActivity()
+
+        // 更新状态：停止视频，返回播放按钮界面
+        _state.value = currentState.copy(
+            isVideoPlaying = false,
+            isVideoPaused = false,
+            showPlayButton = true,
+            showAlarmEffect = false,
+            isAlarmPlaying = false
+        )
+    }
+
+    /**
+     * 处理关闭徽章动画
+     *
+     * 用户点击徽章动画背景关闭，返回播放按钮界面
+     * 允许用户重新观看视频
+     */
+    private fun handleCloseBadgeAnimation() {
+        val currentState = _state.value
+
+        // 仅在徽章动画显示时允许关闭
+        if (!currentState.showBadgeAnimation) {
+            return
+        }
+
+        // 报告用户活动
+        idleTimer.reportActivity()
+
+        // 更新状态：关闭徽章动画，显示播放按钮
+        _state.value = currentState.copy(
+            showBadgeAnimation = false,
+            showPlayButton = true,
+            isVideoPlaying = false,
+            isVideoPaused = false,
+            showAlarmEffect = false,
+            isAlarmPlaying = false
+        )
     }
 }
