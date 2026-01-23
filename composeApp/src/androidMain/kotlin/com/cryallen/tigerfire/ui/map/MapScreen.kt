@@ -1147,7 +1147,7 @@ private fun AvatarCharacter(
     // ==================== 计算目标位置 ====================
     val targetPosition = scenePositions[selectedScene]
 
-    // 计算目标 X 位置
+    // 计算目标 X 位置（居中对齐）
     val targetX = if (targetPosition != null) {
         // 使用实际场景位置，减去 Avatar 一半宽度（48dp = 96dp/2）使其居中
         targetPosition.x - with(density) { 48.dp.toPx() }
@@ -1170,28 +1170,39 @@ private fun AvatarCharacter(
     }
 
     // ==================== 使用 Animatable 创建平滑的位置动画 ====================
+    // 使用 remember 保持 Animatable 的状态，确保动画连续性
     val animatedX = remember { Animatable(targetX) }
     val animatedY = remember { Animatable(targetY) }
 
     // 当场景改变、触发器变化或 isJumping 变化时，执行平滑移动动画
     LaunchedEffect(selectedScene, animationTrigger, isJumping) {
-        // 只有当 isJumping 为 true 时才执行动画
         if (isJumping) {
-            // 执行平滑动画到目标位置
-            val springSpec = spring<Float>(
-                dampingRatio = 0.5f,
-                stiffness = 200f
-            )
+            // 检查是否需要执行动画（当前位置和目标位置的距离超过阈值）
+            val deltaX = animatedX.value - targetX
+            val deltaY = animatedY.value - targetY
+            val distanceSquared = deltaX * deltaX + deltaY * deltaY
 
-            // 无论当前位置在哪里，都执行动画到目标位置
-            // 这样确保了即使已经在目标位置，也会有一个短暂的动画效果
-            animatedX.animateTo(targetX, animationSpec = springSpec)
-            animatedY.animateTo(targetY, animationSpec = springSpec)
+            if (distanceSquared > 1f) {
+                // 距离较远，执行平滑动画
+                // 使用 spring 动画获得弹性回弹效果
+                val springSpec = spring<Float>(
+                    dampingRatio = 0.5f,  // 0.5 = 轻微弹性回弹
+                    stiffness = 200f      // 200 = 适中速度
+                )
 
-            // 动画完成后通知父组件
+                // 同时动画 X 和 Y 位置
+                animatedX.animateTo(targetX, animationSpec = springSpec)
+                animatedY.animateTo(targetY, animationSpec = springSpec)
+            } else {
+                // 距离很近（已经在目标位置），直接 snap 到目标位置
+                animatedX.snapTo(targetX)
+                animatedY.snapTo(targetY)
+            }
+
+            // 动画完成后通知父组件（无论是否执行了动画）
             onJumpComplete()
         }
-        // 如果 isJumping 为 false，直接显示在目标位置（animatedX/Y 已经在 targetX/targetY）
+        // 如果 isJumping 为 false，Avatar 静止在当前位置（不执行任何动画）
     }
 
     Box(
