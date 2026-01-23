@@ -94,11 +94,12 @@ fun FireStationScreen(
         }
     }
 
-    // 颜色规范 - 儿童友好的温暖色调
+    // 消防站主题配色 - 更丰富的层次
     val gradientColors = listOf(
-        Color(0xFFFF6B6B),  // 珊瑚红
-        Color(0xFFFF8E72),  // 橙红色
-        Color(0xFFFFAA64)   // 暖橙色
+        Color(0xFFE63946),  // 消防红
+        Color(0xFFF77F00),  // 橙色
+        Color(0xFFFCBF49),  // 暖黄色
+        Color(0xFFEAE2B7)   // 米黄色底部
     )
 
     Box(
@@ -112,35 +113,54 @@ fun FireStationScreen(
                 )
             )
     ) {
-        // 装饰性背景元素
-        DecorativeBackgroundElements()
+        // 消防站装饰性背景元素
+        FireStationBackground()
 
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 顶部工具栏（返回按钮）
+            // 顶部工具栏（返回按钮）- 卡通风格
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
+                val returnScale by animateFloatAsState(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "returnScale"
+                )
+
                 IconButton(
                     onClick = onNavigateBack,
                     modifier = Modifier
-                        .size(52.dp)
+                        .scale(returnScale)
+                        .size(56.dp)
                         .shadow(
-                            elevation = 8.dp,
+                            elevation = 10.dp,
                             shape = CircleShape,
-                            spotColor = Color.Black.copy(alpha = 0.15f),
-                            ambientColor = Color.Black.copy(alpha = 0.1f)
+                            spotColor = Color.Black.copy(alpha = 0.18f),
+                            ambientColor = Color.Black.copy(alpha = 0.12f)
                         )
-                        .background(Color.White, CircleShape)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    Color.White.copy(alpha = 0.95f)
+                                )
+                            ),
+                            CircleShape
+                        )
                 ) {
                     Text(
                         text = "←",
-                        fontSize = 26.sp,
-                        color = Color(0xFFFF6B6B)
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE63946)
                     )
                 }
             }
@@ -153,27 +173,62 @@ fun FireStationScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // 标题区域带阴影效果
-                Text(
-                    text = "🔥 消防站 🔥",
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.shadow(
-                        elevation = 4.dp,
-                        shape = RoundedCornerShape(8.dp),
-                        spotColor = Color.Black.copy(alpha = 0.2f)
+                // 标题区域 - 卡通风格
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 装饰火焰图标
+                    val flameAnimation = rememberInfiniteTransition(label = "titleFlame")
+                    val flameScale by flameAnimation.animateFloat(
+                        initialValue = 0.95f,
+                        targetValue = 1.05f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(400, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "flameScale"
                     )
-                )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🔥",
+                            fontSize = 48.sp,
+                            modifier = Modifier.scale(flameScale)
+                        )
+                        Text(
+                            text = "消防站",
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.shadow(
+                                elevation = 6.dp,
+                                spotColor = Color.Black.copy(alpha = 0.25f)
+                            )
+                        )
+                        Text(
+                            text = "🔥",
+                            fontSize = 48.sp,
+                            modifier = Modifier.scale(flameScale)
+                        )
+                    }
 
-                Text(
-                    text = "点击设备学习消防知识",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.95f)
-                )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 副标题
+                    Text(
+                        text = "点击设备学习消防知识",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.95f),
+                        modifier = Modifier.shadow(
+                            elevation = 3.dp,
+                            spotColor = Color.Black.copy(alpha = 0.2f)
+                        )
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(40.dp))
 
@@ -188,39 +243,105 @@ fun FireStationScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // 完成进度提示卡片
+                // 完成进度提示卡片 - 增强设计
+                val progressAnimation = rememberInfiniteTransition(label = "progressPulse")
+                val progressScale by progressAnimation.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.02f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "progressScale"
+                )
+
                 Box(
                     modifier = Modifier
+                        .scale(progressScale)
                         .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = Color.Black.copy(alpha = 0.15f)
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(28.dp),
+                            spotColor = Color.Black.copy(alpha = 0.18f),
+                            ambientColor = Color.Black.copy(alpha = 0.1f)
                         )
                         .background(
-                            Color.White.copy(alpha = 0.2f),
-                            RoundedCornerShape(24.dp)
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.25f),
+                                    Color.White.copy(alpha = 0.15f)
+                                )
+                            ),
+                            RoundedCornerShape(28.dp)
                         )
-                        .padding(horizontal = 32.dp, vertical = 16.dp)
+                        .padding(horizontal = 36.dp, vertical = 20.dp)
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = "已完成: ${state.completedDevices.size}/4",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-
-                        // 全部完成提示
-                        if (state.isAllCompleted) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                        // 进度文本
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "🎉 太棒了！消防站场景已解锁！",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFD93D)
+                                text = "⭐",
+                                fontSize = 24.sp
                             )
+                            Text(
+                                text = "已完成: ${state.completedDevices.size}/4",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.shadow(
+                                    elevation = 3.dp,
+                                    spotColor = Color.Black.copy(alpha = 0.2f)
+                                )
+                            )
+                            Text(
+                                text = "⭐",
+                                fontSize = 24.sp
+                            )
+                        }
+
+                        // 全部完成提示 - 更醒目的效果
+                        if (state.isAllCompleted) {
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // 庆祝动画
+                            val celebrateScale by progressAnimation.animateFloat(
+                                initialValue = 1f,
+                                targetValue = 1.1f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(800, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "celebrateScale"
+                            )
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.scale(celebrateScale)
+                            ) {
+                                Text(
+                                    text = "🎉",
+                                    fontSize = 22.sp
+                                )
+                                Text(
+                                    text = "太棒了！全部完成！",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFFD93D),
+                                    modifier = Modifier.shadow(
+                                        elevation = 3.dp,
+                                        spotColor = Color.Black.copy(alpha = 0.3f)
+                                    )
+                                )
+                                Text(
+                                    text = "🎉",
+                                    fontSize = 22.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -249,124 +370,210 @@ fun FireStationScreen(
 }
 
 /**
- * 装饰性背景元素组件
- * 添加浮动的云朵和星星装饰
+ * 消防站装饰性背景组件
+ * 卡通风格的消防站场景装饰
  */
 @Composable
-private fun DecorativeBackgroundElements() {
-    // 云朵浮动动画
-    val cloudFloatAnimation = rememberInfiniteTransition(label = "cloudFloat")
-    val cloud1Offset by cloudFloatAnimation.animateFloat(
-        initialValue = 0f,
-        targetValue = 20f,
+private fun FireStationBackground() {
+    // 多层动画效果
+    val infiniteTransition = rememberInfiniteTransition(label = "bgAnimations")
+
+    // 云朵浮动 - 更自然的多层移动
+    val cloud1X by infiniteTransition.animateFloat(
+        initialValue = -30f,
+        targetValue = 30f,
         animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
+            animation = tween(8000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "cloud1"
+        label = "cloud1X"
     )
-    val cloud2Offset by cloudFloatAnimation.animateFloat(
-        initialValue = 0f,
-        targetValue = -15f,
+    val cloud2X by infiniteTransition.animateFloat(
+        initialValue = 20f,
+        targetValue = -20f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(10000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "cloud2"
+        label = "cloud2X"
     )
 
-    // 星星闪烁动画
-    val starTwinkleAnimation = rememberInfiniteTransition(label = "starTwinkle")
-    val starAlpha by starTwinkleAnimation.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.8f,
+    // 烟雾上升动画
+    val smokeY1 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -40f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(4000, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "smokeY1"
+    )
+    val smokeAlpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "smokeAlpha1"
+    )
+
+    // 星星闪烁
+    val starAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "star"
+        label = "starAlpha"
+    )
+
+    // 火焰跳动
+    val flameScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(300, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "flameScale"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 装饰云朵 - 左上
+        // 背景云朵层 - 柔和的氛围
         Text(
             text = "☁️",
-            fontSize = 48.sp,
+            fontSize = 72.sp,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .offset(x = (-40).dp, y = 80.dp + cloud1Offset.dp)
-                .alpha(0.25f)
+                .offset(x = (-50 + cloud1X).dp, y = 60.dp)
+                .alpha(0.12f)
         )
-
-        // 装饰云朵 - 右上
         Text(
             text = "☁️",
-            fontSize = 64.sp,
+            fontSize = 88.sp,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset(x = 40.dp, y = 120.dp + cloud2Offset.dp)
-                .alpha(0.2f)
+                .offset(x = (30 + cloud2X).dp, y = 100.dp)
+                .alpha(0.1f)
         )
-
-        // 装饰云朵 - 左下
         Text(
             text = "☁️",
             fontSize = 56.sp,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-20).dp, y = (-200).dp + cloud2Offset.dp)
-                .alpha(0.15f)
+                .offset(x = (-30 + cloud2X * 0.5f).dp, y = (-180).dp)
+                .alpha(0.08f)
         )
 
-        // 装饰星星 - 散落分布
-        Text(
-            text = "⭐",
-            fontSize = 24.sp,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = (-60).dp, y = 250.dp)
-                .alpha(starAlpha * 0.3f)
-        )
-
-        Text(
-            text = "✨",
-            fontSize = 20.sp,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = 50.dp, y = 180.dp)
-                .alpha(starAlpha * 0.25f)
-        )
-
-        Text(
-            text = "⭐",
-            fontSize = 28.sp,
+        // 消防站建筑剪影 - 使用emoji组合
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .offset(x = (-40).dp, y = (-280).dp)
+                .offset(x = 40.dp, y = (-20).dp)
+                .alpha(0.08f),
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                text = "🚒",
+                fontSize = 120.sp,
+                modifier = Modifier.offset(x = 20.dp)
+            )
+            Text(
+                text = "🏢",
+                fontSize = 80.sp
+            )
+        }
+
+        // 左下角装饰 - 消防栓
+        Text(
+            text = "🔥",
+            fontSize = 90.sp,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-20).dp, y = (-30).dp)
+                .alpha(0.08f)
+        )
+
+        // 星星和闪光装饰 - 分布在四角
+        val starPositions = listOf(
+            Triple(Alignment.TopEnd, (-80).dp, 200.dp),
+            Triple(Alignment.TopStart, 60.dp, 150.dp),
+            Triple(Alignment.BottomEnd, (-50).dp, (-260).dp),
+            Triple(Alignment.CenterStart, 30.dp, 0.dp),
+        )
+
+        starPositions.forEach { (alignment, xOffset, yOffset) ->
+            Text(
+                text = "⭐",
+                fontSize = (20..32).random().sp,
+                modifier = Modifier
+                    .align(alignment)
+                    .offset(x = xOffset, y = yOffset)
+                    .alpha(starAlpha * 0.25f)
+            )
+        }
+
+        // 闪光效果
+        Text(
+            text = "✨",
+            fontSize = 24.sp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = 100.dp, y = 220.dp)
                 .alpha(starAlpha * 0.2f)
         )
 
-        // 底部装饰波浪效果（使用emoji模拟）
+        // 底部火焰装饰条 - 卡通风格
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = (-30).dp)
-                .alpha(0.15f),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .offset(y = (-25).dp)
+                .alpha(0.12f),
+            horizontalArrangement = Arrangement.spacedBy((-8).dp)
         ) {
-            repeat(8) {
+            repeat(10) { index ->
+                val delayOffset = index * 50
+                val localFlameScale by infiniteTransition.animateFloat(
+                    initialValue = 0.8f,
+                    targetValue = 1.2f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = 400 + delayOffset,
+                            easing = LinearEasing
+                        ),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "flame$index"
+                )
                 Text(
                     text = "🔥",
-                    fontSize = 32.sp,
-                    modifier = Modifier.scale(0.8f)
+                    fontSize = 28.sp,
+                    modifier = Modifier.scale(localFlameScale)
                 )
             }
+        }
+
+        // 右上角烟雾效果 - 模拟消防站场景
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-60).dp, y = 140.dp)
+                .alpha(smokeAlpha1 * 0.15f)
+        ) {
+            Text(
+                text = "💨",
+                fontSize = 40.sp,
+                modifier = Modifier.offset(y = smokeY1.dp)
+            )
         }
     }
 }
 
 /**
  * 设备网格（2x2）
+ * 增强的动画效果和布局
  *
  * @param completedDevices 已完成的设备集合
  * @param isPlayingVideo 是否正在播放视频
@@ -380,48 +587,87 @@ private fun DeviceGrid(
 ) {
     val devices = FireStationDevice.entries
 
-    // 按钮浮动动画
+    // 入场动画 - 依次出现
+    val enterTransition = rememberInfiniteTransition(label = "deviceEntry")
+    val animatedIndices = listOf(0, 1, 2, 3).map { index ->
+        index to remember { androidx.compose.animation.core.Animatable(0f) }
+    }
+
+    // 触发入场动画
+    LaunchedEffect(Unit) {
+        animatedIndices.forEachIndexed { i, (index, anim) ->
+            kotlinx.coroutines.delay(i * 100L)
+            anim.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+    }
+
+    // 按钮呼吸浮动动画
     val floatAnimation = rememberInfiniteTransition(label = "buttonFloat")
     val floatOffset by floatAnimation.animateFloat(
         initialValue = 0f,
-        targetValue = -8f,
+        targetValue = -6f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
+            animation = tween(1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "float"
     )
 
+    // 按钮缩放呼吸效果
+    val pulseScale by floatAnimation.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
     Row(
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.padding(bottom = 20.dp)
     ) {
         // 左列
         Column(
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             devices.slice(0..1).forEachIndexed { index, device ->
+                val (_, anim) = animatedIndices[index]
                 DeviceCard(
                     device = device,
                     isCompleted = device in completedDevices,
                     isEnabled = !isPlayingVideo,
                     onClick = { onDeviceClick(device) },
-                    floatOffset = if (index == 0) floatOffset else 0f
+                    floatOffset = floatOffset,
+                    pulseScale = pulseScale,
+                    enterProgress = anim.value,
+                    index = index
                 )
             }
         }
 
         // 右列
         Column(
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             devices.slice(2..3).forEachIndexed { index, device ->
+                val (_, anim) = animatedIndices[index + 2]
                 DeviceCard(
                     device = device,
                     isCompleted = device in completedDevices,
                     isEnabled = !isPlayingVideo,
                     onClick = { onDeviceClick(device) },
-                    floatOffset = if (index == 0) floatOffset * 0.7f else 0f
+                    floatOffset = floatOffset * 0.8f,
+                    pulseScale = pulseScale,
+                    enterProgress = anim.value,
+                    index = index + 2
                 )
             }
         }
@@ -430,12 +676,16 @@ private fun DeviceGrid(
 
 /**
  * 设备卡片组件
+ * 增强的视觉效果、动画和交互反馈
  *
  * @param device 设备类型
  * @param isCompleted 是否已完成
  * @param isEnabled 是否可点击
  * @param onClick 点击回调
  * @param floatOffset 浮动偏移量
+ * @param pulseScale 呼吸缩放
+ * @param enterProgress 入场动画进度
+ * @param index 索引（用于动画延迟）
  */
 @Composable
 private fun DeviceCard(
@@ -443,63 +693,118 @@ private fun DeviceCard(
     isCompleted: Boolean,
     isEnabled: Boolean,
     onClick: () -> Unit,
-    floatOffset: Float = 0f
+    floatOffset: Float = 0f,
+    pulseScale: Float = 1f,
+    enterProgress: Float = 1f,
+    index: Int = 0
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // 完成状态：轻微放大 + 按下状态：轻微缩小
-    val scale by animateFloatAsState(
+    // 图标旋转动画（持续的轻微旋转）
+    val infiniteTransition = rememberInfiniteTransition(label = "iconRotate")
+    val iconRotation by infiniteTransition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500 + index * 200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "iconRotation$index"
+    )
+
+    // 按下时的缩放和旋转
+    val pressScale by animateFloatAsState(
         targetValue = when {
-            isPressed -> 0.92f
-            isCompleted -> 1.08f
+            isPressed -> 0.88f
+            isCompleted -> 1.05f
             else -> 1f
         },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            stiffness = Spring.StiffnessMedium
         ),
-        label = "scale"
+        label = "pressScale"
     )
 
-    // 旋转动画（完成时）
-    val rotation by animateFloatAsState(
-        targetValue = if (isCompleted) 5f else 0f,
+    // 完成状态的旋转效果
+    val completionRotation by animateFloatAsState(
+        targetValue = if (isCompleted) 8f else 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
         ),
-        label = "rotation"
+        label = "completionRotation"
     )
 
-    // 按下时背景色稍微变暗
-    val backgroundColor by animateFloatAsState(
-        targetValue = if (isPressed) 0.85f else 1f,
-        animationSpec = spring(),
-        label = "backgroundColor"
+    // 背景亮度变化
+    val backgroundBrightness by animateFloatAsState(
+        targetValue = when {
+            !isEnabled -> 0.6f
+            isPressed -> 0.9f
+            else -> 1f
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "backgroundBrightness"
     )
 
-    // 卡片颜色 - 每个设备有不同颜色
-    val cardColor = when (device) {
-        FireStationDevice.FIRE_HYDRANT -> Color(0xFFFFEE94)
-        FireStationDevice.LADDER_TRUCK -> Color(0xFFFF94B5)
-        FireStationDevice.FIRE_EXTINGUISHER -> Color(0xFF94FFD7)
-        FireStationDevice.WATER_HOSE -> Color(0xFFFFB794)
+    // 卡片颜色 - 更丰富的渐变色调
+    val cardGradient = when (device) {
+        FireStationDevice.FIRE_HYDRANT -> listOf(
+            Color(0xFFFFE066), // 金黄色
+            Color(0xFFFFB347)  // 橙色
+        )
+        FireStationDevice.LADDER_TRUCK -> listOf(
+            Color(0xFFFF6B9D), // 粉红色
+            Color(0xFFC44569)  // 深粉色
+        )
+        FireStationDevice.FIRE_EXTINGUISHER -> listOf(
+            Color(0xFF6BCB77), // 绿色
+            Color(0xFF4D8076)  // 深绿色
+        )
+        FireStationDevice.WATER_HOSE -> listOf(
+            Color(0xFF4ECDC4), // 青色
+            Color(0xFF44A08D)  // 深青色
+        )
     }
+
+    // 完成状态的光晕颜色
+    val glowColor = when (device) {
+        FireStationDevice.FIRE_HYDRANT -> Color(0xFFFFD700)
+        FireStationDevice.LADDER_TRUCK -> Color(0xFFFF69B4)
+        FireStationDevice.FIRE_EXTINGUISHER -> Color(0xFF00FF7F)
+        FireStationDevice.WATER_HOSE -> Color(0xFF00CED1)
+    }
+
+    // 入场动画的缩放和透明度
+    val enterScale by animateFloatAsState(
+        targetValue = enterProgress,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "enterScale"
+    )
 
     Box(
         modifier = Modifier
-            .size(150.dp)
+            .size(160.dp)
+            .scale(enterScale * pulseScale)
+            .alpha(enterProgress)
             .offset(y = floatOffset.dp)
             .shadow(
-                elevation = if (isPressed) 6.dp else 12.dp,
-                shape = RoundedCornerShape(24.dp),
-                spotColor = if (isCompleted) Color(0xFFFFD93D) else Color.Black.copy(alpha = 0.15f),
-                ambientColor = Color.Black.copy(alpha = 0.1f)
+                elevation = if (isPressed) 4.dp else if (isCompleted) 16.dp else 10.dp,
+                shape = RoundedCornerShape(28.dp),
+                spotColor = if (isCompleted) glowColor.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.12f),
+                ambientColor = if (isCompleted) glowColor.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.08f)
             )
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(28.dp))
             .background(
-                cardColor.copy(alpha = backgroundColor)
+                brush = Brush.linearGradient(
+                    colors = cardGradient.map { it.copy(alpha = backgroundBrightness) },
+                    start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                    end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                )
             )
             .then(
                 if (isEnabled) {
@@ -514,72 +819,141 @@ private fun DeviceCard(
             ),
         contentAlignment = Alignment.Center
     ) {
+        // 内部内容容器
         Box(
             modifier = Modifier
-                .scale(scale)
-                .rotate(rotation),
+                .scale(pressScale)
+                .rotate(completionRotation),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(vertical = 20.dp, horizontal = 12.dp)
+                modifier = Modifier.padding(vertical = 24.dp, horizontal = 16.dp)
             ) {
-                // 设备图标 - 更大的卡通emoji
+                // 图标容器 - 添加光晕效果
                 Box(
-                    modifier = Modifier.size(70.dp),
+                    modifier = Modifier.size(80.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    // 图标背景圆圈
+                    if (isCompleted) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            glowColor.copy(alpha = 0.2f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                    }
+
+                    // 设备图标
                     Text(
                         text = getDeviceIcon(device),
-                        fontSize = 52.sp
+                        fontSize = 56.sp,
+                        modifier = Modifier.rotate(iconRotation)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // 设备名称
+                // 设备名称 - 更大的字体
                 Text(
                     text = device.displayName,
-                    fontSize = 15.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333),
-                    textAlign = TextAlign.Center
+                    color = Color.White.copy(alpha = 0.95f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.shadow(
+                        elevation = 2.dp,
+                        spotColor = Color.Black.copy(alpha = 0.3f)
+                    )
                 )
 
-                // 完成标记（星星）
+                // 完成标记 - 更醒目的星星和文字
                 if (isCompleted) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "⭐",
-                            fontSize = 18.sp
+                        // 旋转的星星
+                        val starRotation by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 360f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(3000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "starRotation"
                         )
                         Text(
-                            text = "完成",
-                            fontSize = 12.sp,
+                            text = "⭐",
+                            fontSize = 22.sp,
+                            modifier = Modifier.rotate(starRotation)
+                        )
+                        Text(
+                            text = "已完成",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFF6B6B)
+                            color = glowColor,
+                            modifier = Modifier.shadow(
+                                elevation = 2.dp,
+                                spotColor = Color.Black.copy(alpha = 0.3f)
+                            )
                         )
                     }
                 }
             }
         }
 
-        // 完成状态的边框高亮
+        // 完成状态的旋转边框高亮
         if (isCompleted) {
+            val borderRotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(4000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "borderRotation"
+            )
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(28.dp))
+                    .rotate(borderRotation)
                     .background(
                         brush = Brush.sweepGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0xFFFFD93D).copy(alpha = 0.5f),
+                                glowColor.copy(alpha = 0.6f),
+                                Color.Transparent,
+                                glowColor.copy(alpha = 0.6f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+        }
+
+        // 按下时的波纹效果
+        if (isPressed) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.3f),
                                 Color.Transparent
                             )
                         )
@@ -646,6 +1020,7 @@ private fun VideoPlayerOverlay(
 
 /**
  * 徽章收集动画覆盖层
+ * 增强的卡通风格效果
  *
  * @param show 是否显示
  * @param device 获得徽章的设备
@@ -657,32 +1032,67 @@ private fun BadgeAnimationOverlay(
     device: FireStationDevice?,
     onAnimationComplete: () -> Unit
 ) {
-    // 徽章缩放动画
+    // 徽章缩放动画 - 弹性效果
     val badgeScale by animateFloatAsState(
         targetValue = if (show) 1f else 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "badgeScale"
     )
 
-    // 星星旋转动画
-    val infiniteTransition = rememberInfiniteTransition(label = "starRotation")
+    // 无限旋转动画
+    val infiniteTransition = rememberInfiniteTransition(label = "badgeAnimations")
+
+    // 星星旋转 - 内层
     val starRotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
+            animation = tween(4000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "starRotation"
     )
 
+    // 星星闪烁
+    val starAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "starAlpha"
+    )
+
+    // 彩带效果
+    val confettiRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(6000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "confettiRotation"
+    )
+
+    // 徽章浮动
+    val badgeFloat by infiniteTransition.animateFloat(
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "badgeFloat"
+    )
+
     AnimatedVisibility(
         visible = show,
-        enter = fadeIn(),
-        exit = fadeOut()
+        enter = fadeIn(animationSpec = tween(300)),
+        exit = fadeOut(animationSpec = tween(300))
     ) {
         Box(
             modifier = Modifier
@@ -690,111 +1100,248 @@ private fun BadgeAnimationOverlay(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFF6B6B).copy(alpha = 0.85f),
-                            Color(0xFFFFAA64).copy(alpha = 0.85f)
+                            Color(0xFFE63946).copy(alpha = 0.92f),
+                            Color(0xFFF77F00).copy(alpha = 0.92f),
+                            Color(0xFFFCBF49).copy(alpha = 0.92f)
                         )
                     )
                 )
                 .clickable(onClick = onAnimationComplete),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            // 背景装饰元素
+            Box(modifier = Modifier.fillMaxSize()) {
                 // 旋转的星星装饰
-                Box(
-                    modifier = Modifier.scale(badgeScale)
-                ) {
+                listOf(
+                    Pair(0f, 0f),
+                    Pair(120f, 1f),
+                    Pair(240f, 0.5f)
+                ).forEach { (offset, scale) ->
                     Text(
                         text = "⭐",
-                        fontSize = 80.sp,
+                        fontSize = 60.sp,
                         modifier = Modifier
-                            .rotate(starRotation)
-                            .alpha(0.3f)
+                            .align(Alignment.Center)
+                            .offset(x = 0.dp, y = (-180).dp)
+                            .scale(scale * badgeScale)
+                            .rotate(starRotation + offset)
+                            .alpha(starAlpha * 0.25f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                // 彩带效果
+                val confetti = listOf("🎉", "🎊", "✨", "⭐", "🌟")
+                confetti.forEachIndexed { index, emoji ->
+                    val angle = (index * 72f)
+                    val distance = 200.dp
+                    val radius = distance * badgeScale
 
-                // 徽章图标
+                    Text(
+                        text = emoji,
+                        fontSize = 36.sp,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(
+                                x = (kotlin.math.sin(Math.toRadians(angle.toDouble())) * radius.value).dp,
+                                y = (kotlin.math.cos(Math.toRadians(angle.toDouble())) * radius.value).dp
+                            )
+                            .rotate(confettiRotation + angle)
+                            .alpha(starAlpha * 0.4f)
+                    )
+                }
+            }
+
+            // 主内容区域
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .scale(badgeScale)
+                    .offset(y = badgeFloat.dp)
+            ) {
+                // 大徽章图标
+                Box(
+                    modifier = Modifier.size(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 光晕效果
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.3f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+
+                    // 徽章
+                    Text(
+                        text = "🏅",
+                        fontSize = 160.sp,
+                        modifier = Modifier
+                            .rotate(starRotation * 0.1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // 标题动画
+                val titleScale by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.05f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1200, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "titleScale"
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.scale(titleScale)
+                ) {
+                    Text(
+                        text = "🎉",
+                        fontSize = 48.sp
+                    )
+                    Text(
+                        text = "太棒了！",
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.shadow(
+                            elevation = 6.dp,
+                            spotColor = Color.Black.copy(alpha = 0.3f)
+                        )
+                    )
+                    Text(
+                        text = "🎉",
+                        fontSize = 48.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
                 Text(
-                    text = "🏅",
-                    fontSize = 140.sp,
-                    modifier = Modifier.scale(badgeScale)
+                    text = "你获得了新徽章！",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.98f),
+                    modifier = Modifier.shadow(
+                        elevation = 4.dp,
+                        spotColor = Color.Black.copy(alpha = 0.25f)
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Text(
-                    text = "太棒了！",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "你获得了新徽章！",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.95f)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 设备名称卡片
+                // 设备名称卡片 - 渐变背景
                 Box(
                     modifier = Modifier
                         .shadow(
-                            elevation = 12.dp,
-                            shape = RoundedCornerShape(20.dp),
-                            spotColor = Color.Black.copy(alpha = 0.2f)
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color.Black.copy(alpha = 0.25f),
+                            ambientColor = Color.Black.copy(alpha = 0.15f)
                         )
                         .background(
-                            Color.White.copy(alpha = 0.25f),
-                            RoundedCornerShape(20.dp)
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.35f),
+                                    Color.White.copy(alpha = 0.25f)
+                                )
+                            ),
+                            RoundedCornerShape(24.dp)
                         )
-                        .padding(horizontal = 32.dp, vertical = 16.dp)
+                        .padding(horizontal = 40.dp, vertical = 20.dp)
                 ) {
-                    Text(
-                        text = device?.displayName ?: "",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFD93D)
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = getDeviceIcon(device ?: FireStationDevice.FIRE_HYDRANT),
+                            fontSize = 32.sp
+                        )
+                        Text(
+                            text = device?.displayName ?: "",
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFFD93D),
+                            modifier = Modifier.shadow(
+                                elevation = 3.dp,
+                                spotColor = Color.Black.copy(alpha = 0.3f)
+                            )
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(56.dp))
 
-                // 继续按钮
+                // 继续按钮 - 卡通风格
+                val buttonPulse by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.05f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1500, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "buttonPulse"
+                )
+
                 Box(
                     modifier = Modifier
+                        .scale(buttonPulse)
                         .shadow(
-                            elevation = 12.dp,
-                            shape = CircleShape,
-                            spotColor = Color.Black.copy(alpha = 0.2f)
+                            elevation = 14.dp,
+                            shape = RoundedCornerShape(30.dp),
+                            spotColor = Color.Black.copy(alpha = 0.25f)
                         )
-                        .background(Color.White, CircleShape)
-                        .size(140.dp, 56.dp)
-                        .clip(CircleShape)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    Color.White.copy(alpha = 0.95f)
+                                )
+                            ),
+                            RoundedCornerShape(30.dp)
+                        )
+                        .size(160.dp, 64.dp)
+                        .clip(RoundedCornerShape(30.dp))
                         .clickable(onClick = onAnimationComplete),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "继续 →",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFF6B6B)
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "继续",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE63946)
+                        )
+                        Text(
+                            text = "→",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE63946)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Text(
                     text = "或点击任意处继续",
-                    fontSize = 16.sp,
-                    color = Color.White.copy(alpha = 0.8f)
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.85f)
                 )
             }
         }
