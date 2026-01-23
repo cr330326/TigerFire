@@ -1,9 +1,12 @@
 package com.cryallen.tigerfire.component
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -12,27 +15,31 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * 视频播放器组件
  *
  * 使用 ExoPlayer (Media3) 播放 MP4 视频文件
- * 支持播放完成回调和生命周期管理
+ * 使用 PlayerView (Media3 官方组件) 进行渲染，确保视频画面正常显示
  *
  * @param videoPath 视频资源路径（如 "videos/firestation_extinguisher.mp4"）
  * @param modifier 修饰符
  * @param onPlaybackCompleted 播放完成回调
  * @param onPlaybackError 播放错误回调
  * @param autoPlay 是否自动播放，默认为 true
- * @param showControls 是否显示播放控制，默认为 false（儿童应用通常不需要）
  * @param loopMode 是否循环播放，默认为 false
  */
 @Composable
@@ -48,10 +55,30 @@ fun VideoPlayer(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // ExoPlayer 实例
+    var isPlaying by remember { mutableStateOf(autoPlay) }
+    var videoSize by remember { mutableStateOf(VideoSize.UNKNOWN) }
+
+    suspend fun copyAssetToCache(assetPath: String): File = withContext(Dispatchers.IO) {
+        val cacheFile = File(context.cacheDir, assetPath.substringAfterLast("/"))
+        try {
+            context.assets.open(assetPath).use { input ->
+                cacheFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: Exception) {
+            if (assetPath.startsWith("/")) {
+                File(assetPath)
+            } else {
+                cacheFile
+            }
+        }
+        cacheFile
+    }
+
+    // 创建 ExoPlayer - 使用默认配置
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
-            // 设置播放完成监听器
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_ENDED) {
@@ -64,15 +91,19 @@ fun VideoPlayer(
                 override fun onPlayerErrorChanged(error: androidx.media3.common.PlaybackException?) {
                     onPlaybackError(Exception(error?.message ?: "Unknown error"))
                 }
+
+                override fun onIsPlayingChanged(playing: Boolean) {
+                    isPlaying = playing
+                }
+
+                override fun onVideoSizeChanged(size: VideoSize) {
+                    videoSize = size
+                }
             })
         }
     }
 
-    // 播放状态
-    var isPlaying by remember { mutableStateOf(autoPlay) }
-
-    // 生命周期管理
-    LaunchedEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
@@ -80,35 +111,53 @@ fun VideoPlayer(
                     isPlaying = false
                 }
                 Lifecycle.Event.ON_RESUME -> {
-                    // spec.md 要求：切后台后恢复时从头播放（确保知识完整接收）
                     if (autoPlay) {
                         exoPlayer.seekTo(0)
                         exoPlayer.play()
                         isPlaying = true
                     }
                 }
-                Lifecycle.Event.ON_DESTROY -> {
-                    exoPlayer.release()
-                }
                 else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            exoPlayer.release()
+        }
     }
 
-    // 加载并播放视频
-    LaunchedEffect(videoPath) {
-        val videoUri = if (videoPath.startsWith("file:///")) {
-            // 完整文件路径
-            android.net.Uri.parse(videoPath)
-        } else if (videoPath.startsWith("/")) {
-            // 绝对路径
-            android.net.Uri.fromFile(java.io.File(videoPath))
-        } else {
-            // assets 文件路径
-            "file:///android_asset/$videoPath".let {
-                android.net.Uri.parse(it)
+    // PlayerView - 使用 Media3 官方组件确保视频正常渲染
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                // 隐藏播放控制器（如果需要）
+                useController = showControls
+                // 将 ExoPlayer 绑定到 PlayerView
+                player = exoPlayer
             }
+        },
+        update = { playerView ->
+            // 确保 PlayerView 与 ExoPlayer 保持绑定
+            if (playerView.player != exoPlayer) {
+                playerView.player = exoPlayer
+            }
+        },
+        modifier = modifier
+    )
+
+    // 加载并播放视频
+    LaunchedEffect(videoPath, exoPlayer) {
+        delay(500)
+
+        val videoUri = if (videoPath.startsWith("file:///")) {
+            Uri.parse(videoPath)
+        } else if (videoPath.startsWith("/")) {
+            Uri.fromFile(java.io.File(videoPath))
+        } else {
+            val cacheFile = copyAssetToCache(videoPath)
+            Uri.fromFile(cacheFile)
         }
 
         val mediaItem = MediaItem.fromUri(videoUri)
@@ -117,19 +166,6 @@ fun VideoPlayer(
         exoPlayer.playWhenReady = autoPlay
         isPlaying = autoPlay
     }
-
-    // 渲染播放器
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = showControls
-                // 设置视频缩放模式为 ZOOM - 充满屏幕并保持宽高比
-                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            }
-        },
-        modifier = modifier
-    )
 }
 
 /**
@@ -192,10 +228,26 @@ fun VideoPlayerWithState(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // 当前状态（可变）
     var currentState by remember { mutableStateOf(state) }
 
-    // ExoPlayer 实例
+    suspend fun copyAssetToCache(assetPath: String): File = withContext(Dispatchers.IO) {
+        val cacheFile = File(context.cacheDir, assetPath.substringAfterLast("/"))
+        try {
+            context.assets.open(assetPath).use { input ->
+                cacheFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: Exception) {
+            if (assetPath.startsWith("/")) {
+                File(assetPath)
+            } else {
+                cacheFile
+            }
+        }
+        cacheFile
+    }
+
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
@@ -243,8 +295,7 @@ fun VideoPlayerWithState(
         }
     }
 
-    // 生命周期管理
-    LaunchedEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
@@ -254,38 +305,48 @@ fun VideoPlayerWithState(
                     exoPlayer.seekTo(0)
                     exoPlayer.play()
                 }
-                Lifecycle.Event.ON_DESTROY -> {
-                    exoPlayer.release()
-                }
                 else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            exoPlayer.release()
+        }
     }
 
-    // 加载视频
-    LaunchedEffect(videoPath) {
-        val videoUri = "file:///android_asset/$videoPath".let {
-            android.net.Uri.parse(it)
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+            }
+        },
+        update = { playerView ->
+            if (playerView.player != exoPlayer) {
+                playerView.player = exoPlayer
+            }
+        },
+        modifier = modifier
+    )
+
+    LaunchedEffect(videoPath, exoPlayer) {
+        delay(500)
+
+        val videoUri = if (videoPath.startsWith("file:///")) {
+            Uri.parse(videoPath)
+        } else if (videoPath.startsWith("/")) {
+            Uri.fromFile(java.io.File(videoPath))
+        } else {
+            val cacheFile = copyAssetToCache(videoPath)
+            Uri.fromFile(cacheFile)
         }
+
         val mediaItem = MediaItem.fromUri(videoUri)
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
         exoPlayer.play()
     }
-
-    // 渲染播放器
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = false
-                // 设置视频缩放模式为 ZOOM - 充满屏幕并保持宽高比
-                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            }
-        },
-        modifier = modifier
-    )
 }
 
 /**

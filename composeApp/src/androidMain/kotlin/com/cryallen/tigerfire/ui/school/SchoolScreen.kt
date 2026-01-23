@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -191,7 +192,7 @@ fun SchoolScreen(
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                // 动画播放器区域
+                // 播放提示/完成状态显示区域
                 AnimationPlayerArea(
                     isPlaying = state.isPlayingAnimation,
                     isCompleted = state.isCompleted,
@@ -200,6 +201,15 @@ fun SchoolScreen(
                     }
                 )
             }
+        }
+
+        // 视频播放覆盖层 - 全屏播放确保视频正常渲染
+        if (state.isPlayingAnimation) {
+            VideoPlayerOverlay(
+                onPlaybackComplete = {
+                    viewModel.onEvent(SchoolEvent.AnimationPlaybackCompleted)
+                }
+            )
         }
 
         // 徽章收集动画覆盖层
@@ -231,7 +241,7 @@ private fun AlertFlashOverlay(alpha: Float) {
 /**
  * 动画播放器区域
  *
- * 使用 VideoPlayer 组件播放学校消防安全动画
+ * 显示播放状态或完成状态，实际视频播放由 VideoPlayerOverlay 全屏覆盖层处理
  *
  * @param isPlaying 是否正在播放
  * @param isCompleted 是否已完成
@@ -257,14 +267,23 @@ private fun AnimationPlayerArea(
         contentAlignment = Alignment.Center
     ) {
         if (isPlaying) {
-            // 播放学校消防安全动画
-            VideoPlayer(
-                videoPath = "videos/School_Fire_Safety_Knowledge.mp4",
-                modifier = Modifier.fillMaxSize(),
-                onPlaybackCompleted = onPlaybackComplete,
-                autoPlay = true,
-                showControls = false
-            )
+            // 播放中提示 - 实际视频由全屏覆盖层播放
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "🎬",
+                    fontSize = 64.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "正在播放动画...",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF457B9D)
+                )
+            }
         } else if (isCompleted) {
             // 已完成状态
             Column(
@@ -289,7 +308,55 @@ private fun AnimationPlayerArea(
                     color = Color(0xFF2A9D8F)
                 )
             }
+        } else {
+            // 未开始状态
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "🎬",
+                    fontSize = 48.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "即将播放消防安全动画",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF457B9D)
+                )
+            }
         }
+    }
+}
+
+/**
+ * 视频播放全屏覆盖层
+ *
+ * 使用与 FireStationScreen 相同的全屏覆盖模式播放视频
+ * 确保视频画面正常显示
+ *
+ * @param onPlaybackComplete 播放完成回调
+ */
+@Composable
+private fun VideoPlayerOverlay(
+    onPlaybackComplete: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.9f)),
+        contentAlignment = Alignment.Center
+    ) {
+        VideoPlayer(
+            videoPath = "videos/School_Fire_Safety_Knowledge.mp4",
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .padding(32.dp),
+            onPlaybackCompleted = onPlaybackComplete,
+            autoPlay = true,
+            showControls = false
+        )
     }
 }
 
