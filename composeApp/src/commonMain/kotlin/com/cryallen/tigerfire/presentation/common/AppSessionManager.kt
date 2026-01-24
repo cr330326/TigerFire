@@ -162,6 +162,15 @@ class AppSessionManager(
     }
 
     /**
+     * 标记提醒已被用户确认
+     *
+     * 用户点击"我知道了"后调用，避免重复显示提醒
+     */
+    fun markTimeReminderShown() {
+        sessionTimer.markReminderShown()
+    }
+
+    /**
      * 检查时间是否已到
      *
      * @return true 如果时间已到

@@ -653,6 +653,7 @@ fun MapScreen(
                     onDismiss = {
                         showTimeReminder = false
                         // 标记提醒已显示，避免重复显示
+                        sessionManager.markTimeReminderShown()
                     }
                 )
             }
@@ -1043,7 +1044,7 @@ private fun ParentVerificationDialog(
 }
 
 /**
- * 时间提醒对话框
+ * 时间提醒对话框（优化版 - 带动画和现代UI设计）
  *
  * 当会话时间即将到时（默认 2 分钟前）显示，提醒儿童剩余时间
  *
@@ -1055,70 +1056,191 @@ fun TimeReminderDialog(
     remainingMinutes: Int,
     onDismiss: () -> Unit
 ) {
+    // 弹窗缩放和淡入动画
+    var dialogScale by remember { mutableStateOf(0.7f) }
+    var dialogAlpha by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        // 入场动画：同时进行缩放和淡入
+        dialogScale = 1f
+        dialogAlpha = 1f
+    }
+
+    // 按钮点击缩放动画
+    var buttonScale by remember { mutableStateOf(1f) }
+
+    // 小火图标呼吸动画
+    val infiniteTransition = rememberInfiniteTransition(label = "time_reminder_animation")
+    val iconScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "icon_breath"
+    )
+
+    // 背景遮罩（带淡入动画）
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f)),
+            .alpha(dialogAlpha)
+            .background(
+                Color.Black.copy(alpha = 0.6f),
+                shape = MaterialTheme.shapes.extraLarge
+            )
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            ),
         contentAlignment = Alignment.Center
     ) {
+        // 弹窗内容
         Box(
             modifier = Modifier
-                .background(
-                    Color(0xFFFFE4B5), // 温暖的米色背景
-                    shape = MaterialTheme.shapes.large
-                )
+                .scale(dialogScale)
                 .padding(32.dp)
-                .shadow(16.dp, MaterialTheme.shapes.large)
+                .shadow(
+                    elevation = 24.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    spotColor = Color(0xFFFF6B6B).copy(alpha = 0.4f),
+                    ambientColor = Color(0xFFFFD700).copy(alpha = 0.3f)
+                )
+                .background(
+                    color = Color(0xFFFFF8DC), // 更亮的象牙色背景
+                    shape = RoundedCornerShape(28.dp)
+                )
+                .drawBehind {
+                    // 渐变边框（红色到金色）
+                    val strokeWidth = 4.dp.toPx()
+                    drawRoundRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFFF6B6B), // 浅红
+                                Color(0xFFFFD700), // 金色
+                                Color(0xFFFF6B6B)  // 浅红
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.width, size.height)
+                        ),
+                        style = Stroke(width = strokeWidth),
+                        cornerRadius = CornerRadius(28.dp.value, 28.dp.value)
+                    )
+                }
+                .padding(horizontal = 28.dp, vertical = 24.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // 小火图标
-                Text(
-                    text = "🐯",
-                    fontSize = 64.sp
-                )
+                // 小火图标（带呼吸动画）
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .scale(iconScale)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0xFFFFD700).copy(alpha = 0.5f)
+                        )
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    Color(0xFFFFF8DC)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🐯",
+                        fontSize = 48.sp
+                    )
+                }
 
-                // 标题
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // 标题（使用深橙色而非红色，与按钮区分）
                 Text(
                     text = "时间快到啦！",
-                    fontSize = 28.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE63946) // 红色警告色
+                    color = Color(0xFFFF6B6B) // 浅红色（不同于按钮的深红色）
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // 提示内容
                 Text(
                     text = "还剩下 $remainingMinutes 分钟哦",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF333333)
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = "想再玩一会儿可以请爸爸妈妈帮忙设置~",
-                    fontSize = 18.sp,
-                    color = Color.Gray,
+                    fontSize = 15.sp,
+                    color = Color(0xFF666666), // 深灰色，提高对比度
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // 确定按钮
-                Text(
-                    text = "我知道了",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                // 确定按钮（使用深红色，与标题区分）
+                Box(
                     modifier = Modifier
-                        .clickable(onClick = onDismiss)
-                        .background(
-                            Color(0xFFE63946),
-                            shape = MaterialTheme.shapes.medium
+                        .scale(buttonScale)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            spotColor = Color(0xFFE63946).copy(alpha = 0.5f)
                         )
-                        .padding(horizontal = 32.dp, vertical = 12.dp)
-                )
+                        .clickable {
+                            buttonScale = 0.95f
+                            onDismiss()
+                        }
+                        .background(
+                            color = Color(0xFFE63946), // 深红色
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .drawBehind {
+                            // 按钮渐变效果
+                            drawRoundRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFE63946),
+                                        Color(0xFFFF6B6B)
+                                    )
+                                ),
+                                cornerRadius = CornerRadius(16.dp.value, 16.dp.value)
+                            )
+                        }
+                        .padding(horizontal = 40.dp, vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "我知道了",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
+        }
+    }
+
+    // 按钮缩放恢复动画
+    LaunchedEffect(buttonScale) {
+        if (buttonScale != 1f) {
+            delay(100)
+            buttonScale = 1f
         }
     }
 }

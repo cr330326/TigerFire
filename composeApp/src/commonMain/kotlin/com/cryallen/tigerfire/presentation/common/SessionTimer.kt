@@ -307,4 +307,13 @@ class SessionTimer(
     fun shouldShowReminder(): Boolean {
         return reminderSent && _timerState.value == SessionTimerState.RUNNING
     }
+
+    /**
+     * 标记提醒已被用户确认
+     *
+     * 用户点击"我知道了"后调用，避免重复显示提醒
+     */
+    fun markReminderShown() {
+        reminderSent = false
+    }
 }
