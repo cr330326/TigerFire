@@ -6,11 +6,11 @@
 
 | 属性 | 值 |
 |------|-----|
-| **文档版本** | v1.2 |
+| **文档版本** | v1.3 |
 | **创建日期** | 2026-01-19 |
-| **更新日期** | 2026-01-23 |
-| **更新内容** | 更新学校场景任务（3.4, 4.5, 5.5），增加警报效果、播放按钮交互、语音提示等新流程 |
-| **基于方案** | plan.md v1.1 |
+| **更新日期** | 2026-01-24 |
+| **更新内容** | 更新森林场景任务（3.5, 4.6, 5.6），改为点击交互：点击小羊→直升机自动飞行→放下梯子按钮→救援视频 |
+| **基于方案** | plan.md v1.3 |
 | **遵循规范** | constitution.md > CLAUDE.md > plan.md > spec.md |
 
 ---
@@ -687,29 +687,34 @@
 
 **任务说明**：
 - 定义 `ForestState`：
-  - `helicopterPosition: Offset`（仅相对位置，不涉及平台 UI 类型）
-  - `rescuedSheepCount: Int`
-  - `showLadderButton: Boolean`
-  - `currentRescueVideo: String?`
-  - `showBadgeAnimation: Boolean`
-  - `isAllCompleted: Boolean`
+  - `rescuedSheepCount: Int`（已救小羊数量 0-2）
+  - `targetSheepIndex: Int?`（当前目标小羊索引 1 或 2）
+  - `isHelicopterFlying: Boolean`（直升机是否正在飞行）
+  - `showLadderButton: Boolean`（是否显示放下梯子按钮）
+  - `isVideoPlaying: Boolean`（救援视频是否正在播放）
+  - `showBadgeAnimation: Boolean`（是否显示徽章动画）
+  - `isAllCompleted: Boolean`（是否全部完成）
 - 定义 `ForestEvent`：
-  - `HelicopterDragged(x: Float, y: Float)`
-  - `LadderButtonClicked`
-  - `RescueVideoCompleted`
-  - `BadgeAnimationCompleted`
-  - `BackPressed`
+  - `SheepClicked(sheepIndex: Int)`（用户点击小羊 1 或 2）
+  - `HelicopterFlightCompleted`（直升机飞行完成）
+  - `LadderButtonClicked`（用户点击放下梯子按钮）
+  - `RescueVideoCompleted`（救援视频播放完成）
+  - `BadgeAnimationCompleted`（徽章动画完成）
+  - `BackPressed`（用户点击返回）
 - 定义 `ForestEffect`：
-  - `ShowLadderButton`
-  - `HideLadderButton`
-  - `PlayRescueVideo(videoPath: String)`
-  - `ShowBadgeReward(badge: Badge)`
-  - `PlaySuccessSound`
-  - `NavigateToMap`
+  - `FlyHelicopter(targetSheepIndex: Int)`（飞向目标小羊）
+  - `ShowLadderButton`（显示放下梯子按钮）
+  - `HideLadderButton`（隐藏放下梯子按钮）
+  - `PlayRescueVideo(videoPath: String)`（播放救援视频）
+  - `ShowBadgeReward(badge: Badge)`（显示徽章奖励）
+  - `PlayVoice(voicePath: String)`（播放语音）
+  - `PlayCelebrationAnimation`（播放庆祝动画）
+  - `NavigateToMap`（导航至主地图）
 - 实现 ViewModel：
-  - 处理拖拽位置（应用速度衰减系数 0.6）
-  - 判定与小羊距离（≤80pt 触发吸附）
-  - 救援视频播放完毕后更新小羊计数
+  - 处理小羊点击事件（检查是否已救、是否正在飞行/播放视频）
+  - 直升机飞行完成后显示放下梯子按钮
+  - 救援视频播放完毕后更新小羊计数并颁发徽章
+  - 两个小羊都救出后触发庆祝动画
 - 验证：ViewModel 可正确管理森林救援流程
 
 **新增文件**：
@@ -717,6 +722,8 @@
 - `shared/presentation/forest/ForestState.kt`
 - `shared/presentation/forest/ForestEvent.kt`
 - `shared/presentation/forest/ForestEffect.kt`
+
+**视频资源**：`rescue_sheep_1.mp4`、`rescue_sheep_2.mp4`
 
 ---
 
@@ -976,18 +983,44 @@
 
 **任务说明**：
 - 创建 `@Composable fun ForestScreen(viewModel: ForestViewModel)`
-- 绘制森林火灾背景
-- 绘制 2 只小羊位置
-- 使用 `Modifier.pointerInput` 实现拖拽手势
-- 根据 `state.helicopterPosition` 更新直升机位置
-- 当 `showLadderButton` 为 true 时显示"放下梯子"按钮（≥100pt）
-- 点击按钮播放救援视频
-- 视频播放完毕发送 `RescueVideoCompleted` 事件
+- **布局结构**：
+  - 森林火灾背景（静态图片或动画）
+  - 屏幕左侧：直升机图标（超大，≥150pt），持续播放螺旋桨飞行动画（Lottie）
+  - 屏幕右侧：两只小羊图标，周边显示火苗动画，小羊做求救动画
+- **小羊点击交互**：
+  - 使用 `Modifier.clickable` 实现小羊点击检测
+  - 点击小羊发送 `SheepClicked(sheepIndex)` 事件
+  - 已救出的小羊图标隐藏或显示为已救援状态
+- **直升机飞行动画**：
+  - 订阅 `FlyHelicopter` Effect，使用 `animate*AsState` 实现平滑移动
+  - 动画时长约 1-1.5 秒
+  - 飞行完成后发送 `HelicopterFlightCompleted` 事件
+- **放下梯子按钮**：
+  - 当 `state.showLadderButton` 为 true 时显示圆形按钮（≥100pt）
+  - 按钮位于直升机下方或跟随直升机位置
+  - 点击发送 `LadderButtonClicked` 事件
+- **救援视频播放**：
+  - 订阅 `PlayRescueVideo` Effect → 集成 `VideoPlayer` 组件
+  - 播放 `rescue_sheep_1.mp4` 或 `rescue_sheep_2.mp4`
+  - 视频播放完毕发送 `RescueVideoCompleted` 事件
+- **庆祝动画**：
+  - 订阅 `PlayCelebrationAnimation` Effect → 播放 Lottie 庆祝动画
+  - 播放语音总结："直升机能从天上救人，真厉害！"
 - 订阅 `viewModel.effect` 处理音效与导航
 - 验证：森林场景可正常救援
 
 **新增文件**：
 - `androidApp/src/main/java/com/tigertruck/ui/forest/ForestScreen.kt`
+
+**资源文件准备**：
+- `assets/lottie/anim_helicopter_spin.json`（直升机螺旋桨旋转动画）
+- `assets/lottie/anim_sheep_help.json`（小羊求救动画）
+- `assets/lottie/anim_fire_flicker.json`（火苗闪烁动画）
+- `assets/lottie/anim_celebration.json`（庆祝动画）
+- `assets/videos/rescue_sheep_1.mp4`（救援小羊视频1）
+- `assets/videos/rescue_sheep_2.mp4`（救援小羊视频2）
+- `assets/audio/voice_forest_rescue_intro.mp3`（"小羊被困啦！快开直升机救它们！"）
+- `assets/audio/voice_forest_summary.mp3`（"直升机能从天上救人，真厉害！"）
 
 ---
 
@@ -1271,18 +1304,44 @@
 
 **任务说明**：
 - 创建 `struct ForestView: View`
-- 绘制森林火灾背景
-- 绘制 2 只小羊位置
-- 使用 `.gesture(DragGesture())` 实现拖拽手势
-- 根据 `state.helicopterPosition` 更新直升机位置
-- 当 `showLadderButton` 为 true 时显示"放下梯子"按钮（≥100pt）
-- 点击按钮播放救援视频
-- 视频播放完毕发送 Event
+- **布局结构**：
+  - 森林火灾背景（静态图片或动画）
+  - 屏幕左侧：直升机图标（超大，≥150pt），持续播放螺旋桨飞行动画（Lottie）
+  - 屏幕右侧：两只小羊图标，周边显示火苗动画，小羊做求救动画
+- **小羊点击交互**：
+  - 使用 `.onTapGesture` 实现小羊点击检测
+  - 点击小羊发送 `SheepClicked(sheepIndex)` 事件
+  - 已救出的小羊图标隐藏或显示为已救援状态
+- **直升机飞行动画**：
+  - 订阅 `FlyHelicopter` Effect，使用 `.offset()` + `withAnimation` 实现平滑移动
+  - 动画时长约 1-1.5 秒
+  - 飞行完成后发送 `HelicopterFlightCompleted` 事件
+- **放下梯子按钮**：
+  - 当 `state.showLadderButton` 为 true 时显示圆形按钮（≥100pt）
+  - 按钮位于直升机下方或跟随直升机位置
+  - 使用 `.onTapGesture` 发送 `LadderButtonClicked` 事件
+- **救援视频播放**：
+  - 订阅 `PlayRescueVideo` Effect → 集成 `VideoPlayerView` 组件
+  - 播放 `rescue_sheep_1.mp4` 或 `rescue_sheep_2.mp4`
+  - 视频播放完毕发送 `RescueVideoCompleted` 事件
+- **庆祝动画**：
+  - 订阅 `PlayCelebrationAnimation` Effect → 播放 Lottie 庆祝动画
+  - 播放语音总结："直升机能从天上救人，真厉害！"
 - 订阅 Effect 处理音效与导航
 - 验证：森林场景可正常救援
 
 **新增文件**：
 - `iosApp/TigerFire/UI/ForestView/ForestView.swift`
+
+**资源文件准备**：
+- `anim_helicopter_spin.json`（直升机螺旋桨旋转动画）
+- `anim_sheep_help.json`（小羊求救动画）
+- `anim_fire_flicker.json`（火苗闪烁动画）
+- `anim_celebration.json`（庆祝动画）
+- `rescue_sheep_1.mp4`（救援小羊视频1）
+- `rescue_sheep_2.mp4`（救援小羊视频2）
+- `voice_forest_rescue_intro.mp3`（"小羊被困啦！快开直升机救它们！"）
+- `voice_forest_summary.mp3`（"直升机能从天上救人，真厉害！"）
 
 ---
 

@@ -1,40 +1,55 @@
 package com.cryallen.tigerfire.presentation.forest
 
 /**
- * 森林场景状态
+ * 森林场景状态（点击交互版本）
  *
  * 表示森林场景页面的 UI 状态
+ * 采用点击小羊 → 直升机自动飞行 → 显示播放按钮 → 观看视频的交互方式
  */
 data class ForestState(
     /**
      * 直升机位置（X坐标，0.0-1.0 为屏幕比例）
+     * 初始位置在屏幕左侧（20%）
      */
-    val helicopterX: Float = 0.1f,
+    val helicopterX: Float = 0.2f,
 
     /**
      * 直升机位置（Y坐标，0.0-1.0 为屏幕比例）
+     * 初始位置垂直居中（50%）
      */
     val helicopterY: Float = 0.5f,
 
     /**
-     * 是否正在拖拽直升机
+     * 直升机目标位置（X坐标，用于飞行动画）
+     * null 表示没有目标
      */
-    val isDraggingHelicopter: Boolean = false,
+    val targetHelicopterX: Float? = null,
 
     /**
-     * 各小羊的救援状态（索引 0 和 1 分别代表两只小羊）
+     * 直升机目标位置（Y坐标，用于飞行动画）
+     * null 表示没有目标
+     */
+    val targetHelicopterY: Float? = null,
+
+    /**
+     * 是否正在飞行到目标小羊
+     */
+    val isHelicopterFlying: Boolean = false,
+
+    /**
+     * 当前目标小羊索引（0 或 1），null 表示没有目标
+     */
+    val targetSheepIndex: Int? = null,
+
+    /**
+     * 已救援的小羊索引集合
      */
     val rescuedSheep: Set<Int> = emptySet(),
 
     /**
-     * 当前靠近的小羊索引（null 表示没有靠近任何小羊）
+     * 是否显示"播放视频"按钮（直升机到达目标后显示）
      */
-    val nearbySheepIndex: Int? = null,
-
-    /**
-     * 是否显示"放下梯子"按钮
-     */
-    val showLowerLadderButton: Boolean = false,
+    val showPlayVideoButton: Boolean = false,
 
     /**
      * 当前是否正在播放救援视频

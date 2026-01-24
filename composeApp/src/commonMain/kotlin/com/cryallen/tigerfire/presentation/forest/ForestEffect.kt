@@ -1,7 +1,7 @@
 package com.cryallen.tigerfire.presentation.forest
 
 /**
- * 森林场景副作用（Effect）
+ * 森林场景副作用（Effect - 点击交互版本）
  *
  * 表示一次性执行的操作，不影响 State 持久状态
  * 通过 Channel 发送，确保只消费一次
@@ -24,14 +24,9 @@ sealed class ForestEffect {
     data object PlayClickSound : ForestEffect()
 
     /**
-     * 播放拖拽音效
+     * 播放直升机飞行动画音效
      */
-    data object PlayDragSound : ForestEffect()
-
-    /**
-     * 播放吸附成功音效
-     */
-    data object PlaySnapSound : ForestEffect()
+    data object PlayFlyingSound : ForestEffect()
 
     /**
      * 播放徽章收集成功音效
@@ -39,7 +34,7 @@ sealed class ForestEffect {
     data object PlayBadgeSound : ForestEffect()
 
     /**
-     * 播放全部完成成功音效 + 小火欢呼语音
+     * 播放全部完成成功音效
      */
     data object PlayAllCompletedSound : ForestEffect()
 
@@ -73,4 +68,18 @@ sealed class ForestEffect {
      * 无操作 30 秒后显示小火提示："需要帮忙吗？"
      */
     data object ShowIdleHint : ForestEffect()
+
+    /**
+     * 播放森林场景开始语音
+     *
+     * "小羊被困啦！快开直升机救它们！"
+     */
+    data object PlayStartVoice : ForestEffect()
+
+    /**
+     * 播放森林场景完成语音
+     *
+     * "直升机能从天上救人，真厉害！"
+     */
+    data object PlayCompleteVoice : ForestEffect()
 }

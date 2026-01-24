@@ -6,10 +6,10 @@
 
 | 属性 | 值 |
 |------|-----|
-| **文档版本** | v1.2 |
+| **文档版本** | v1.3 |
 | **创建日期** | 2026-01-19 |
-| **更新日期** | 2026-01-23 |
-| **更新内容** | 更新学校场景流程，增加警报效果、播放按钮交互、语音提示 |
+| **更新日期** | 2026-01-24 |
+| **更新内容** | 更新森林场景为点击交互：点击小羊→直升机自动飞行→显示放下梯子按钮→播放救援视频 |
 | **适用范围** | 完整 App 功能实现 |
 | **技术栈** | Kotlin Multiplatform Mobile (KMM) |
 | **架构模式** | Clean Architecture + MVVM |
@@ -26,7 +26,7 @@
 2. **主地图场景**：场景图标状态管理、解锁逻辑、转场动画
 3. **消防站场景**：4 个教学设备点击交互 + MP4 视频播放 + 徽章获得
 4. **学校场景**：MP4 剧情动画播放 + 场景解锁 + 徽章获得
-5. **森林场景**：手势拖拽交互 + 小羊救援 + 徽章获得
+5. **森林场景**：点击交互救援 + 小羊救援 + 徽章获得
 6. **我的收藏**：徽章展示系统 + 变体管理 + 隐藏彩蛋
 7. **家长模式**：时间控制、使用统计、进度管理
 8. **全局系统**：语音引导、音效系统、进度持久化
@@ -158,7 +158,7 @@ TigerFire/
 | **map** | 场景图标状态管理、解锁判定、转场触发 | GameProgress | 导航至具体场景 |
 | **firestation** | 设备点击状态、视频播放控制、徽章颁发 | GameProgress | 更新 Progress + Badge |
 | **school** | 剧情动画播放、场景解锁触发 | GameProgress | 解锁森林 + Badge |
-| **forest** | 手势拖拽控制、救援判定、徽章颁发 | GameProgress | 更新 Progress + Badge |
+| **forest** | 点击救援控制、救援判定、徽章颁发 | GameProgress | 更新 Progress + Badge |
 | **collection** | 徽章展示、变体管理、彩蛋解锁 | Badge List | 展示 + 彩蛋触发 |
 | **parent** | 时间控制、统计展示、进度重置 | Settings + Progress | 更新设置 / 重置进度 |
 
@@ -457,23 +457,26 @@ data class SchoolState(
 )
 ```
 
-### 4.4 森林救援流程
+### 4.4 森林救援流程（点击交互）
 
 **步骤**：
-1. 进入森林场景 → 播放警报音效 + 小火语音提示
-2. 显示直升机图标（屏幕中央，超大）
-3. 显示 2 只小羊位置（屏幕上方不同位置）
-4. 用户单指拖拽直升机 → 直升机慢速跟随手指移动
-5. 直升机与小羊距离 ≤80pt → 自动吸附 + 显示"放下梯子"按钮
-6. 点击"放下梯子"按钮 → 播放救援 MP4 片段（小羊爬梯子）
-7. 视频结束 → 小羊消失 + 弹出徽章 + 成功音效
-8. 重复 4-7 直至救出 2 只小羊
-9. 全部完成 → 播放庆祝动画 + 小火语音总结
+1. 进入森林场景 → 小火语音提示："小羊被困啦！快开直升机救它们！"
+2. 屏幕左侧显示直升机图标（超大，≥150pt），持续播放螺旋桨飞行动画
+3. 屏幕右侧显示两只小羊图标，小羊周边被火苗包围，小羊图标做求救动画
+4. 用户点击小羊图标1 → 直升机缓慢飞行到小羊图标1上方 → 显示放下梯子按钮（圆形，≥100pt）
+5. 点击放下梯子按钮 → 播放救援视频 rescue_sheep_1.mp4
+6. 视频结束 → 小羊消失 + 弹出徽章 + 成功音效
+7. 用户点击小羊图标2 → 直升机缓慢飞行到小羊图标2上方 → 显示放下梯子按钮（圆形，≥100pt）
+8. 点击放下梯子按钮 → 播放救援视频 rescue_sheep_2.mp4
+9. 视频结束 → 小羊消失 + 弹出徽章 + 成功音效
+10. 两个视频都播放完成 → 播放庆祝 Lottie 动画 + 语音总结："直升机能从天上救人，真厉害！"
 
-**手势交互细节**：
-- 拖拽速度：直升机移动速度限制为手指速度的 60%（增加可控性）
-- 吸附判定：每帧检测直升机中心与小羊中心距离，触发阈值 80pt
-- 中断处理：拖拽过程中抬手 → 直升机停在当前位置，不回退
+**交互设计细节**：
+- **点击交互**：点击小羊触发直升机自动飞行，不需要拖拽操作
+- **直升机飞行**：使用动画实现从当前位置到目标小羊上方的平滑移动（约 1-1.5 秒）
+- **放下梯子按钮**：直升机到达目标位置后显示，圆形按钮尺寸 ≥100pt
+- **视频资源**：rescue_sheep_1.mp4 和 rescue_sheep_2.mp4（各约 10 秒）
+- **完成判定**：两个救援视频都播放完毕后触发庆祝动画
 
 ### 4.5 徽章收集与彩蛋解锁流程
 
@@ -564,6 +567,60 @@ sealed class SchoolEffect {
 2. 用户点击播放按钮 → 发送 `StopAlarmEffects` + `PlayVideo`
 3. 视频播放完成 → 颁发徽章 + 解锁森林 + 播放语音
 4. 语音播放完成 → 导航回主地图
+
+### 5.2.2 森林场景 State / Event / Effect 设计（点击交互）
+
+森林场景改为**点击小羊触发救援**的交互方式，状态设计如下：
+
+```kotlin
+// ForestState
+data class ForestState(
+    val rescuedSheepCount: Int = 0,              // 已救小羊数量 (0-2)
+    val targetSheepIndex: Int? = null,           // 当前目标小羊索引 (1 或 2)
+    val isHelicopterFlying: Boolean = false,     // 直升机是否正在飞行
+    val showLadderButton: Boolean = false,       // 是否显示放下梯子按钮
+    val isVideoPlaying: Boolean = false,         // 救援视频是否正在播放
+    val showBadgeAnimation: Boolean = false,     // 是否显示徽章动画
+    val isAllCompleted: Boolean = false,         // 是否全部完成
+    val helicopterPosition: Pair<Float, Float>? = null  // 直升机当前位置（可选，用于UI动画）
+)
+
+// ForestEvent
+sealed class ForestEvent {
+    data class SheepClicked(val sheepIndex: Int) : ForestEvent()    // 用户点击小羊 (1 或 2)
+    object HelicopterFlightCompleted : ForestEvent()                // 直升机飞行完成
+    object LadderButtonClicked : ForestEvent()                      // 用户点击放下梯子按钮
+    object RescueVideoCompleted : ForestEvent()                     // 救援视频播放完成
+    object BadgeAnimationCompleted : ForestEvent()                  // 徽章动画完成
+    object BackPressed : ForestEvent()                              // 用户点击返回
+}
+
+// ForestEffect
+sealed class ForestEffect {
+    data class FlyHelicopter(val targetSheepIndex: Int) : ForestEffect()  // 飞向目标小羊
+    object ShowLadderButton : ForestEffect()                              // 显示放下梯子按钮
+    object HideLadderButton : ForestEffect()                              // 隐藏放下梯子按钮
+    data class PlayRescueVideo(val videoPath: String) : ForestEffect()    // 播放救援视频
+    data class ShowBadgeReward(val badge: Badge) : ForestEffect()         // 显示徽章奖励
+    data class PlayVoice(val voicePath: String) : ForestEffect()          // 播放语音
+    object PlayCelebrationAnimation : ForestEffect()                      // 播放庆祝动画
+    object NavigateToMap : ForestEffect()                                 // 导航至主地图
+}
+```
+
+**流程说明**：
+1. 进入场景 → 播放语音："小羊被困啦！快开直升机救它们！"
+2. 用户点击小羊 → 发送 `FlyHelicopter` Effect → UI 触发飞行动画
+3. 飞行完成 → 发送 `HelicopterFlightCompleted` 事件 → 显示放下梯子按钮
+4. 用户点击梯子按钮 → 发送 `PlayRescueVideo` Effect
+5. 视频播放完成 → 颁发徽章 → 救出下一个小羊
+6. 两个小羊都救出 → 触发庆祝动画 + 语音总结："直升机能从天上救人，真厉害！"
+7. 语音播放完成 → 导航回主地图
+
+**状态约束**：
+- 已救小羊数量达到 2 后，触发 `isAllCompleted = true`
+- 直升机飞行中或视频播放中，禁止点击其他小羊
+- 放下梯子按钮仅在直升机到达目标位置后显示
 
 ### 5.3 State / Event / Effect 划分原则
 
@@ -913,7 +970,7 @@ fun loadLottieAnimation(path: String): LottieComposition? {
 
 **逻辑**：
 - 进入任意场景后，启动 30 秒计时器
-- 30 秒内无任何点击/拖拽操作 → 触发提示
+- 30 秒内无任何点击操作 → 触发提示
 - 提示内容：小火弹出语音 + 可点击元素轻轻晃动动画
 - 任何操作触发后重置计时器
 
@@ -987,10 +1044,10 @@ CREATE TABLE Badge (
 1. **多语言国际化**：首版仅支持中文，UI 文本硬编码可接受
 2. **云端进度同步**：完全离线运行，无跨设备进度同步
 3. **自定义徽章设计**：徽章样式固定，不支持用户自定义
-4. **高级手势支持**：仅支持单指点击/拖拽，不支持多指或复杂手势
-5. **直升机拖拽物理仿真**：森林场景拖拽采用简化"慢速跟随"逻辑，
+4. **高级手势支持**：仅支持单指点击，不支持多指或复杂手势
+5. **直升机飞行动画**：森林场景采用点击触发自动飞行逻辑，
    不实现惯性、碰撞检测、物理反弹等效果（符合 spec.md"极度简化操作"原则）。
-   **实现方式**：直升机位置 = 手指位置 × 速度衰减系数（约 0.6），
+   **实现方式**：点击小羊 → 直升机自动飞向目标 → 显示放下梯子按钮，
    确保低龄儿童操作可控性
 6. **动态内容更新**：所有资源内置，不支持在线下载新场景
 7. **无障碍增强**：依赖系统默认无障碍支持，不做额外优化

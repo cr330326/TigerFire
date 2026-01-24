@@ -17,13 +17,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.sqrt
 
 /**
- * 森林场景 ViewModel
+ * 森林场景 ViewModel（点击交互版本）
  *
  * 管理森林场景页面的状态和事件处理
+ * 交互方式：点击小羊 → 直升机自动飞行 → 显示播放按钮 → 观看视频
  *
  * @param viewModelScope 协程作用域（由平台层注入）
  * @param progressRepository 进度仓储接口
@@ -40,22 +39,26 @@ class ForestViewModel(
         /** 小羊总数 */
         const val TOTAL_SHEEP = 2
 
-        /** 靠近检测阈值（屏幕比例，约 100pt 对应的比例） */
-        const val NEARBY_THRESHOLD = 0.15f
-
         /** 森林场景徽章基础类型 */
         const val FOREST_BADGE_BASE_TYPE = "forest_sheep"
 
-        /** 小羊位置（屏幕比例，x, y） */
+        /** 小羊位置（屏幕比例，x, y） - 与 UI 组件保持一致 */
         private val SHEEP_POSITIONS = listOf(
-            0.6f to 0.3f,  // 小羊 1
-            0.7f to 0.7f   // 小羊 2
+            0.7f to 0.3f,   // 小羊 1 - 右上
+            0.75f to 0.65f  // 小羊 2 - 右下
         )
+
+        /** 直升机初始位置 */
+        private const val HELICOPTER_INITIAL_X = 0.15f  // 屏幕左侧 15%
+        private const val HELICOPTER_INITIAL_Y = 0.5f   // 垂直居中
     }
 
     // ==================== 状态管理 ====================
 
-    private val _state = MutableStateFlow(ForestState())
+    private val _state = MutableStateFlow(ForestState(
+        helicopterX = HELICOPTER_INITIAL_X,
+        helicopterY = HELICOPTER_INITIAL_Y
+    ))
     val state: StateFlow<ForestState> = _state
 
     // ==================== 副作用通道 ====================
@@ -101,6 +104,12 @@ class ForestViewModel(
         idleTimer.startIdleDetection {
             onIdleTimeout()
         }
+
+        // 延迟播放开始语音："小羊被困啦！快开直升机救它们！"
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(500) // 等待 UI 渲染完成
+            sendEffect(ForestEffect.PlayStartVoice)
+        }
     }
 
     // ==================== 事件处理 ====================
@@ -112,10 +121,9 @@ class ForestViewModel(
      */
     fun onEvent(event: ForestEvent) {
         when (event) {
-            is ForestEvent.DragStarted -> handleDragStarted()
-            is ForestEvent.DragUpdated -> handleDragUpdated(event.x, event.y)
-            is ForestEvent.DragEnded -> handleDragEnded()
-            is ForestEvent.LowerLadderClicked -> handleLowerLadderClicked(event.sheepIndex)
+            is ForestEvent.SheepClicked -> handleSheepClicked(event.sheepIndex)
+            is ForestEvent.HelicopterFlightCompleted -> handleHelicopterFlightCompleted()
+            is ForestEvent.PlayVideoClicked -> handlePlayVideoClicked(event.sheepIndex)
             is ForestEvent.RescueVideoCompleted -> handleRescueVideoCompleted(event.sheepIndex)
             is ForestEvent.BackToMapClicked -> handleBackToMap()
             is ForestEvent.BadgeAnimationCompleted -> handleBadgeAnimationCompleted()
@@ -123,74 +131,30 @@ class ForestViewModel(
     }
 
     /**
-     * 处理开始拖拽直升机
+     * 处理点击小羊事件
+     *
+     * @param sheepIndex 小羊索引（0 或 1）
      */
-    private fun handleDragStarted() {
+    private fun handleSheepClicked(sheepIndex: Int) {
+        val currentState = _state.value
+
         // 报告用户活动，重置空闲计时器
         idleTimer.reportActivity()
 
-        _state.value = _state.value.copy(
-            isDraggingHelicopter = true
-        )
-        sendEffect(ForestEffect.PlayDragSound)
-    }
-
-    /**
-     * 处理拖拽位置更新
-     *
-     * @param x X坐标（0.0-1.0 屏幕比例）
-     * @param y Y坐标（0.0-1.0 屏幕比例）
-     */
-    private fun handleDragUpdated(x: Float, y: Float) {
-        val currentState = _state.value
-
-        // 限制坐标在 0.0-1.0 范围内
-        val clampedX = x.coerceIn(0f, 1f)
-        val clampedY = y.coerceIn(0f, 1f)
-
-        // 检测是否靠近任何未救援的小羊
-        val nearbySheepIndex = findNearbySheep(clampedX, clampedY, currentState.rescuedSheep)
-
-        // 更新状态
-        _state.value = currentState.copy(
-            helicopterX = clampedX,
-            helicopterY = clampedY,
-            nearbySheepIndex = nearbySheepIndex,
-            showLowerLadderButton = nearbySheepIndex != null && !currentState.isPlayingRescueVideo
-        )
-    }
-
-    /**
-     * 处理结束拖拽直升机
-     */
-    private fun handleDragEnded() {
-        val currentState = _state.value
-
-        // 如果靠近小羊，吸附到小羊位置
-        val nearbySheepIndex = currentState.nearbySheepIndex
-        if (nearbySheepIndex != null) {
-            val (sheepX, sheepY) = SHEEP_POSITIONS[nearbySheepIndex]
-            _state.value = currentState.copy(
-                helicopterX = sheepX,
-                helicopterY = sheepY,
-                isDraggingHelicopter = false
-            )
-            sendEffect(ForestEffect.PlaySnapSound)
-        } else {
-            _state.value = currentState.copy(
-                isDraggingHelicopter = false
-            )
+        // 检查是否可以点击：
+        // 1. 小羊未被救援
+        // 2. 直升机不在飞行中
+        // 3. 没有正在播放视频
+        if (sheepIndex in currentState.rescuedSheep) {
+            // 小羊已救出，播放反馈音效
+            sendEffect(ForestEffect.PlayClickSound)
+            return
         }
-    }
 
-    /**
-     * 处理"放下梯子"按钮点击
-     *
-     * @param sheepIndex 小羊索引
-     */
-    private fun handleLowerLadderClicked(sheepIndex: Int) {
-        // 报告用户活动，重置空闲计时器
-        idleTimer.reportActivity()
+        if (currentState.isHelicopterFlying || currentState.isPlayingRescueVideo) {
+            // 正在飞行或播放视频，忽略点击
+            return
+        }
 
         // 检测快速点击
         if (rapidClickGuard.checkClick()) {
@@ -200,16 +164,72 @@ class ForestViewModel(
             return
         }
 
+        // 获取目标小羊位置
+        val (targetX, targetY) = SHEEP_POSITIONS[sheepIndex]
+
+        // 更新状态：开始飞行
+        _state.value = currentState.copy(
+            targetSheepIndex = sheepIndex,
+            targetHelicopterX = targetX,
+            targetHelicopterY = targetY,
+            isHelicopterFlying = true,
+            showPlayVideoButton = false
+        )
+
+        // 发送飞行动画音效
+        sendEffect(ForestEffect.PlayFlyingSound)
+    }
+
+    /**
+     * 处理直升机飞行完成事件
+     *
+     * 当 UI 完成飞行动画后调用
+     */
+    private fun handleHelicopterFlightCompleted() {
+        val currentState = _state.value
+        val sheepIndex = currentState.targetSheepIndex ?: return
+
+        // 更新直升机位置到目标位置
+        val targetX = currentState.targetHelicopterX ?: currentState.helicopterX
+        val targetY = currentState.targetHelicopterY ?: currentState.helicopterY
+
+        _state.value = currentState.copy(
+            helicopterX = targetX,
+            helicopterY = targetY,
+            isHelicopterFlying = false,
+            showPlayVideoButton = true
+        )
+
+        // 播放点击音效提示用户可以点击播放按钮
+        sendEffect(ForestEffect.PlayClickSound)
+    }
+
+    /**
+     * 处理点击"播放视频"按钮事件
+     *
+     * @param sheepIndex 小羊索引（0 或 1）
+     */
+    private fun handlePlayVideoClicked(sheepIndex: Int) {
         val currentState = _state.value
 
+        // 报告用户活动，重置空闲计时器
+        idleTimer.reportActivity()
+
+        // 检测快速点击
+        if (rapidClickGuard.checkClick()) {
+            sendEffect(ForestEffect.PlaySlowDownVoice)
+            rapidClickGuard.reset()
+            return
+        }
+
         // 获取救援视频路径
-        val videoPath = resourcePathProvider.getVideoPath("forest/rescue_sheep_${sheepIndex + 1}.mp4")
+        val videoPath = resourcePathProvider.getVideoPath("rescue_sheep_${sheepIndex + 1}")
 
         // 更新状态为正在播放视频
         _state.value = currentState.copy(
             isPlayingRescueVideo = true,
             currentPlayingSheepIndex = sheepIndex,
-            showLowerLadderButton = false
+            showPlayVideoButton = false
         )
 
         // 发送播放视频副作用
@@ -217,9 +237,9 @@ class ForestViewModel(
     }
 
     /**
-     * 处理救援视频播放完成
+     * 处理救援视频播放完成事件
      *
-     * @param sheepIndex 小羊索引
+     * @param sheepIndex 小羊索引（0 或 1）
      */
     private fun handleRescueVideoCompleted(sheepIndex: Int) {
         val currentState = _state.value
@@ -227,7 +247,10 @@ class ForestViewModel(
         // 更新状态：结束播放
         _state.value = currentState.copy(
             isPlayingRescueVideo = false,
-            currentPlayingSheepIndex = null
+            currentPlayingSheepIndex = null,
+            targetSheepIndex = null,
+            targetHelicopterX = null,
+            targetHelicopterY = null
         )
 
         viewModelScope.launch {
@@ -279,9 +302,9 @@ class ForestViewModel(
                 if (isAllCompleted) {
                     sendEffect(ForestEffect.ShowCompletionHint)
                     sendEffect(ForestEffect.PlayAllCompletedSound)
+                    // 播放完成语音："直升机能从天上救人，真厉害！"
+                    sendEffect(ForestEffect.PlayCompleteVoice)
                 }
-            } else {
-                // 重复救援，不重复发放徽章
             }
         }
     }
@@ -319,30 +342,6 @@ class ForestViewModel(
     }
 
     // ==================== 辅助方法 ====================
-
-    /**
-     * 查找附近的小羊
-     *
-     * @param x 直升机 X 坐标
-     * @param y 直升机 Y 坐标
-     * @param rescuedSheep 已救援的小羊集合
-     * @return 附近的小羊索引，如果没有则返回 null
-     */
-    private fun findNearbySheep(x: Float, y: Float, rescuedSheep: Set<Int>): Int? {
-        SHEEP_POSITIONS.forEachIndexed { index, (sheepX, sheepY) ->
-            // 跳过已救援的小羊
-            if (index in rescuedSheep) return@forEachIndexed
-
-            // 计算距离
-            val distance = sqrt((x - sheepX) * (x - sheepX) + (y - sheepY) * (y - sheepY))
-
-            // 如果距离小于阈值，返回该小羊索引
-            if (distance < NEARBY_THRESHOLD) {
-                return index
-            }
-        }
-        return null
-    }
 
     /**
      * 发送副作用到 Effect 通道

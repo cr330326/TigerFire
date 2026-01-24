@@ -1,35 +1,30 @@
 package com.cryallen.tigerfire.presentation.forest
 
 /**
- * 森林场景事件
+ * 森林场景事件（点击交互版本）
  *
  * 表示用户在森林场景页面的操作动作
+ * 采用点击小羊 → 直升机自动飞行 → 显示播放按钮 → 观看视频的交互方式
  */
 sealed class ForestEvent {
     /**
-     * 开始拖拽直升机
-     */
-    data object DragStarted : ForestEvent()
-
-    /**
-     * 拖拽直升机位置更新
-     *
-     * @property x X坐标（0.0-1.0 屏幕比例）
-     * @property y Y坐标（0.0-1.0 屏幕比例）
-     */
-    data class DragUpdated(val x: Float, val y: Float) : ForestEvent()
-
-    /**
-     * 结束拖拽直升机
-     */
-    data object DragEnded : ForestEvent()
-
-    /**
-     * 点击"放下梯子"按钮
+     * 点击小羊（触发直升机自动飞行）
      *
      * @property sheepIndex 小羊索引（0 或 1）
      */
-    data class LowerLadderClicked(val sheepIndex: Int) : ForestEvent()
+    data class SheepClicked(val sheepIndex: Int) : ForestEvent()
+
+    /**
+     * 直升机飞行完成（到达目标小羊上方）
+     */
+    data object HelicopterFlightCompleted : ForestEvent()
+
+    /**
+     * 点击"播放视频"按钮
+     *
+     * @property sheepIndex 小羊索引（0 或 1）
+     */
+    data class PlayVideoClicked(val sheepIndex: Int) : ForestEvent()
 
     /**
      * 救援视频播放完成
