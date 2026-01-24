@@ -118,4 +118,11 @@ expect class CoroutineScope {
      * @param block 要执行的代码块
      */
     fun launch(block: suspend () -> Unit)
+
+    /**
+     * 取消协程作用域中的所有协程
+     *
+     * 应在 ViewModel 不再需要时调用，防止内存泄漏
+     */
+    fun cancel()
 }

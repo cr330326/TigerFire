@@ -97,7 +97,8 @@ class AndroidAudioManager(
      * 获取音效文件路径
      */
     private fun getSoundFilePath(soundName: String): String {
-        return "audio/$soundName.mp3"
+        // 音效文件在 audio/sound_effects/ 目录下，格式为 .wav
+        return "audio/sound_effects/$soundName.wav"
     }
 
     // ==================== 公共方法实现 ====================
@@ -153,7 +154,7 @@ class AndroidAudioManager(
     override fun playAllCompletedSound() {
         playSoundEffect(SoundType.ALL_COMPLETED)
         // 可以同时播放语音
-        playVoice("audio/voice/all_completed.mp3")
+        playVoice("audio/voices/collection_egg.mp3")
     }
 
     override fun playAlertSound() {
@@ -163,7 +164,7 @@ class AndroidAudioManager(
 
         scope.launch {
             try {
-                val mediaPlayer = createMediaPlayer("audio/alert.mp3")
+                val mediaPlayer = createMediaPlayer("audio/sound_effects/alert.wav")
                 alertMediaPlayer = mediaPlayer
 
                 // 循环播放警报
