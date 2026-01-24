@@ -65,6 +65,14 @@ class ProgressRepositoryImpl(
         database.gameProgressQueries.updateTotalPlayTime(
             progress.totalPlayTime
         )
+
+        // 同步保存徽章：获取现有徽章，只添加新的
+        val existingBadges = getAllBadges().first()
+        val existingBadgeIds = existingBadges.map { it.id }.toSet()
+        progress.badges.filterNot { it.id in existingBadgeIds }
+            .forEach { badge ->
+                addBadge(badge)
+            }
     }
 
     override suspend fun resetProgress() {
@@ -118,7 +126,7 @@ class ProgressRepositoryImpl(
     /**
      * 从数据库获取当前徽章列表
      */
-    fun getAllBadges(): Flow<List<Badge>> {
+    override fun getAllBadges(): Flow<List<Badge>> {
         return database.badgeQueries.selectAllBadges()
             .asFlow()
             .mapToList(Dispatchers.Default)
@@ -130,7 +138,7 @@ class ProgressRepositoryImpl(
     /**
      * 添加徽章到数据库
      */
-    suspend fun addBadge(badge: Badge) {
+    override suspend fun addBadge(badge: Badge) {
         database.badgeQueries.insertBadge(
             id = badge.id,
             scene = badge.scene.name,

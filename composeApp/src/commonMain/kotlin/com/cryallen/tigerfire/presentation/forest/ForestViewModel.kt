@@ -85,22 +85,25 @@ class ForestViewModel(
     // ==================== 初始化 ====================
 
     init {
-        // 订阅游戏进度，加载已救援的小羊
+        // 订阅游戏进度和徽章，加载已救援的小羊
         viewModelScope.launch {
-            progressRepository.getGameProgress()
-                .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
-                .collect { progress ->
-                    // 从徽章列表中反推已救援的小羊索引
-                    val rescuedSheep = progress.badges
-                        .filter { it.scene == SceneType.FOREST }
-                        .map { it.variant }
-                        .toSet()
+            kotlinx.coroutines.flow.combine(
+                progressRepository.getGameProgress()
+                    .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) },
+                progressRepository.getAllBadges()
+                    .onStart { emit(emptyList()) }
+            ) { progress, badges ->
+                // 从徽章列表中反推已救援的小羊索引
+                val rescuedSheep = badges
+                    .filter { it.scene == SceneType.FOREST }
+                    .map { it.variant }
+                    .toSet()
 
-                    _state.value = _state.value.copy(
-                        rescuedSheep = rescuedSheep,
-                        isAllCompleted = rescuedSheep.size >= TOTAL_SHEEP
-                    )
-                }
+                _state.value = _state.value.copy(
+                    rescuedSheep = rescuedSheep,
+                    isAllCompleted = rescuedSheep.size >= TOTAL_SHEEP
+                )
+            }.collect { /* 收集即可，不需要处理 */ }
         }
 
         // 启动空闲检测（30秒无操作显示小火提示）
@@ -137,6 +140,7 @@ class ForestViewModel(
      * 处理点击小羊事件
      *
      * @param sheepIndex 小羊索引（0 或 1）
+     * 注意：用户可以重复观看视频学习，已救援的小羊也可以再次点击
      */
     private fun handleSheepClicked(sheepIndex: Int) {
         val currentState = _state.value
@@ -145,15 +149,9 @@ class ForestViewModel(
         idleTimer.reportActivity()
 
         // 检查是否可以点击：
-        // 1. 小羊未被救援
-        // 2. 直升机不在飞行中
-        // 3. 没有正在播放视频
-        if (sheepIndex in currentState.rescuedSheep) {
-            // 小羊已救出，播放反馈音效
-            sendEffect(ForestEffect.PlayClickSound)
-            return
-        }
-
+        // 1. 直升机不在飞行中
+        // 2. 没有正在播放视频
+        // 注意：允许重复点击已救援的小羊进行复习
         if (currentState.isHelicopterFlying || currentState.isPlayingRescueVideo) {
             // 正在飞行或播放视频，忽略点击
             return

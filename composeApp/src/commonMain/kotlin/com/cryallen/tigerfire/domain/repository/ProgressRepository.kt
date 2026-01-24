@@ -1,5 +1,6 @@
 package com.cryallen.tigerfire.domain.repository
 
+import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.GameProgress
 import com.cryallen.tigerfire.domain.model.ParentSettings
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,20 @@ interface ProgressRepository {
      * @return Flow<GameProgress> 游戏进度数据流，自动响应数据变化
      */
     fun getGameProgress(): Flow<GameProgress>
+
+    /**
+     * 获取所有徽章流
+     *
+     * @return Flow<List<Badge>> 徽章列表数据流，自动响应数据变化
+     */
+    fun getAllBadges(): Flow<List<Badge>>
+
+    /**
+     * 添加徽章
+     *
+     * @param badge 要添加的徽章
+     */
+    suspend fun addBadge(badge: Badge)
 
     /**
      * 更新游戏进度

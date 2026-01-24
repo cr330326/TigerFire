@@ -75,7 +75,7 @@ import kotlinx.coroutines.launch
 /**
  * 森林场景 Screen（点击交互版本）
  *
- * 交互方式：点击小羊 → 直升机自动飞行 → 显示播放按钮 → 观看视频
+ * 交互方式：点击小羊 → 直升机自动飞行 → 显示救援按钮 → 观看视频
  * 适合3-6岁儿童：大触控目标、明亮色彩、即时反馈、清晰引导
  *
  * @param viewModel ForestViewModel
@@ -124,6 +124,7 @@ fun ForestScreen(
                 is ForestEffect.ShowIdleHint -> {
                     // 显示空闲提示：小火"需要帮忙吗？"
                     // TODO: 实现 UI 提示显示逻辑
+                    audioManager.playVoice("audio/voices/hint_ idle.mp3")
                 }
                 is ForestEffect.PlayStartVoice -> {
                     // 播放开始语音："小羊被困啦！快开直升机救它们！"
@@ -379,7 +380,6 @@ private fun SheepClickable(
     // 按下时的缩放动画
     val scale by animateFloatAsState(
         targetValue = when {
-            isRescued -> 0.8f  // 已救援：缩小
             isPressed -> 0.85f  // 按下时：缩小
             isTarget -> 1.15f  // 飞行目标：放大
             else -> 1f
@@ -450,7 +450,8 @@ private fun SheepClickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = {
-                    if (!isRescued && !isFlying) {
+                    // 允许重复点击观看，只要直升机不在飞行中
+                    if (!isFlying) {
                         coroutineScope.launch {
                             // 播放点击反馈动画
                             onClick()
@@ -461,7 +462,7 @@ private fun SheepClickable(
         contentAlignment = Alignment.Center
     ) {
         // 目标小羊的光晕效果
-        if (isTarget && !isRescued) {
+        if (isTarget) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -531,10 +532,7 @@ private fun SheepClickable(
             Text(
                 text = "🐑",
                 fontSize = 65.sp,  // 调整字体大小以匹配新的容器尺寸
-                color = if (isRescued)
-                    Color.White.copy(alpha = 0.5f)
-                else
-                    Color.White
+                color = Color.White  // 保持正常颜色，允许重复观看
             )
         }
 
@@ -869,7 +867,7 @@ private fun PlayVideoButton(
                 )
         )
 
-        // 播放图标和文字 - 调整字体大小以匹配新的容器尺寸
+        // 救援图标和文字 - 调整字体大小以匹配新的容器尺寸
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -879,7 +877,7 @@ private fun PlayVideoButton(
                 fontSize = 18.sp  // 缩小以匹配新的按钮尺寸 (原36.sp -> 18.sp)
             )
             Text(
-                text = "播放",
+                text = "救援",
                 fontSize = 11.sp,  // 缩小以匹配新的按钮尺寸 (原18.sp -> 11.sp)
                 fontWeight = FontWeight.Bold,
                 color = Color.White
