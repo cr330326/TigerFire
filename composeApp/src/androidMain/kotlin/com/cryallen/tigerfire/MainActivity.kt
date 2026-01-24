@@ -7,7 +7,15 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.cryallen.tigerfire.factory.ViewModelFactory
@@ -46,11 +54,24 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
+            // 使用 Box 容器和状态触发重组，修复小米设备白屏问题
+            // 参考: https://issuetracker.google.com/issues/227926002
+            var isReady by remember { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                // 延迟触发重组，确保 NavHost 正确初始化
+                isReady = true
+            }
+
             TigerFireTheme {
-                AppNavigation(
-                    navController = rememberNavController(),
-                    viewModelFactory = viewModelFactory
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (isReady) {
+                        AppNavigation(
+                            navController = rememberNavController(),
+                            viewModelFactory = viewModelFactory
+                        )
+                    }
+                }
             }
         }
     }
@@ -95,7 +116,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TigerFireTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = darkColorScheme(),
+        colorScheme = darkColorScheme(
+            background = androidx.compose.ui.graphics.Color.Black
+        ),
         content = content
     )
 }
