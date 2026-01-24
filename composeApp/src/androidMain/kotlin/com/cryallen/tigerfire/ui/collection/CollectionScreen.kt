@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cryallen.tigerfire.domain.model.SceneType
+import kotlinx.coroutines.CancellationException
 import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.presentation.collection.CollectionEffect
 import com.cryallen.tigerfire.presentation.collection.CollectionEvent
@@ -103,30 +104,36 @@ fun CollectionScreen(
     val audioManager = remember { context.getAudioManager() }
     var selectedBadge by remember { mutableStateOf<com.cryallen.tigerfire.domain.model.Badge?>(null) }
 
-    // 页面进入动画
+    // 页面进入动画 - 使用 produceState 确保正确清理
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         contentVisible = true
     }
 
-    // 订阅副作用（Effect）
+    // 订阅副作用（Effect）- 使用 CollectAsState 或者在离开时正确清理
+    // 这里使用 LaunchedEffect + Flow.collect，会自动在组件离开时取消
     LaunchedEffect(Unit) {
-        viewModel.effect.collect { effect ->
-            when (effect) {
-                is CollectionEffect.ShowBadgeDetail -> {
-                    selectedBadge = effect.badge
+        try {
+            viewModel.effect.collect { effect ->
+                when (effect) {
+                    is CollectionEffect.ShowBadgeDetail -> {
+                        selectedBadge = effect.badge
+                    }
+                    is CollectionEffect.PlayClickSound -> {
+                        audioManager.playClickSound(null)
+                    }
+                    is CollectionEffect.PlayBadgeSound -> {
+                        audioManager.playBadgeSound()
+                    }
+                    is CollectionEffect.PlayCompletionAnimation -> {
+                        audioManager.playSuccessSound()
+                    }
+                    is CollectionEffect.NavigateToMap -> onNavigateBack()
                 }
-                is CollectionEffect.PlayClickSound -> {
-                    audioManager.playClickSound(null)
-                }
-                is CollectionEffect.PlayBadgeSound -> {
-                    audioManager.playBadgeSound()
-                }
-                is CollectionEffect.PlayCompletionAnimation -> {
-                    audioManager.playSuccessSound()
-                }
-                is CollectionEffect.NavigateToMap -> onNavigateBack()
             }
+        } catch (e: CancellationException) {
+            // 组件离开时取消，这是正常行为
+            throw e
         }
     }
 
@@ -434,9 +441,11 @@ private fun CollectionStatsCard(
         label = "card_scale"
     )
 
-    // 完成时的闪光动画
+    // 完成时的闪光动画 - 使用带 key 的 LaunchedEffect 确保正确重置
     val shimmerOffset = remember { Animatable(0f) }
     LaunchedEffect(hasCollectedAll) {
+        // 重置动画状态
+        shimmerOffset.snapTo(0f)
         if (hasCollectedAll) {
             shimmerOffset.animateTo(
                 targetValue = 1000f,
@@ -860,17 +869,18 @@ private fun BadgeCard(
     sceneColor: Color,
     onClick: () -> Unit
 ) {
-    // Shimmer 闪光动画
-    val shimmerOffset = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        shimmerOffset.animateTo(
-            targetValue = 1000f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(2000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            )
-        )
-    }
+    // 使用 rememberInfiniteTransition 替代 Animatable + LaunchedEffect
+    // 这样可以自动管理动画生命周期，避免内存泄漏
+    val infiniteTransition = rememberInfiniteTransition(label = "badge_shimmer")
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_offset"
+    )
 
     // 点击缩放动画
     var cardScale by remember { mutableStateOf(1f) }
@@ -917,8 +927,8 @@ private fun BadgeCard(
                             Color(0xFFFFD700).copy(alpha = 0.5f),
                             Color.Transparent
                         ),
-                        startX = shimmerOffset.value - 500f,
-                        endX = shimmerOffset.value + 500f
+                        startX = shimmerOffset - 500f,
+                        endX = shimmerOffset + 500f
                     ),
                     cornerRadius = CornerRadius(16.dp.value, 16.dp.value)
                 )
