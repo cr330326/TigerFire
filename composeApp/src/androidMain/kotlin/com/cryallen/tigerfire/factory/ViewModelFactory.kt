@@ -111,12 +111,10 @@ class ViewModelFactory(
 
     /**
      * 创建 CollectionViewModel
-     *
-     * 为每个实例创建独立的 CoroutineScope，防止内存泄漏
      */
     fun createCollectionViewModel(): CollectionViewModel {
         return CollectionViewModel(
-            viewModelScope = CoroutineScope(),  // 独立的 scope
+            viewModelScope = coroutineScope,
             progressRepository = progressRepository
         )
     }

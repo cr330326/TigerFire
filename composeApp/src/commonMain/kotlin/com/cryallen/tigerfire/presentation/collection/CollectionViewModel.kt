@@ -32,17 +32,6 @@ class CollectionViewModel(
     private val _effect = Channel<CollectionEffect>()
     val effect: Flow<CollectionEffect> = _effect.receiveAsFlow()
 
-    // ==================== 生命周期管理 ====================
-
-    /**
-     * 清理 ViewModel 资源
-     *
-     * 应在页面离开时调用，取消所有协程防止内存泄漏
-     */
-    fun cleanup() {
-        viewModelScope.cancel()
-    }
-
     // ==================== 初始化 ====================
 
     init {

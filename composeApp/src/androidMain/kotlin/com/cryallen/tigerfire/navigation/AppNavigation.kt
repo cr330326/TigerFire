@@ -1,7 +1,6 @@
 package com.cryallen.tigerfire.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
@@ -97,15 +96,9 @@ fun AppNavigation(
 
         // 我的收藏
         composable(Route.COLLECTION) {
-            // 使用 remember 创建 ViewModel，每次进入时都会创建新实例
+            // 不再为每个 CollectionViewModel 创建独立的 scope
+            // 恢复使用共享 scope，Navigation Compose 会自动管理页面生命周期
             val viewModel = remember { viewModelFactory.createCollectionViewModel() }
-
-            // 页面离开时清理 ViewModel，防止内存泄漏
-            DisposableEffect(Unit) {
-                onDispose {
-                    viewModel.cleanup()
-                }
-            }
 
             CollectionScreen(
                 viewModel = viewModel,
