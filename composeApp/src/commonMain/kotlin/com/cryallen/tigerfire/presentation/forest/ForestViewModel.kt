@@ -90,12 +90,15 @@ class ForestViewModel(
             progressRepository.getGameProgress()
                 .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
                 .collect { progress ->
-                    val rescuedCount = progress.forestRescuedSheep
-                    val rescuedSheep = (0 until rescuedCount).toSet()
+                    // 从徽章列表中反推已救援的小羊索引
+                    val rescuedSheep = progress.badges
+                        .filter { it.scene == SceneType.FOREST }
+                        .map { it.variant }
+                        .toSet()
 
                     _state.value = _state.value.copy(
                         rescuedSheep = rescuedSheep,
-                        isAllCompleted = rescuedCount >= TOTAL_SHEEP
+                        isAllCompleted = rescuedSheep.size >= TOTAL_SHEEP
                     )
                 }
         }
@@ -284,13 +287,13 @@ class ForestViewModel(
 
                 progressRepository.updateGameProgress(finalProgress)
 
-                // 更新本地状态
-                val newRescuedSheep = currentState.rescuedSheep + sheepIndex
+                // 更新本地状态 - 基于当前最新状态，保留第一次更新的结果
+                val newRescuedSheep = _state.value.rescuedSheep + sheepIndex
 
-                _state.value = currentState.copy(
+                _state.value = _state.value.copy(
                     rescuedSheep = newRescuedSheep,
                     isAllCompleted = isAllCompleted,
-                    showBadgeAnimation = true,
+                    showBadgeAnimation = true,  // 显示徽章动画
                     earnedBadgeSheepIndex = sheepIndex
                 )
 

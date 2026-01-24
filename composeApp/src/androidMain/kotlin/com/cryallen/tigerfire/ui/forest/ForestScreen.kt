@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
 import com.cryallen.tigerfire.component.VideoPlayer
 import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.presentation.forest.ForestEffect
@@ -903,33 +904,24 @@ private fun RescueVideoOverlay(
     sheepIndex: Int,
     onPlaybackComplete: (Int) -> Unit
 ) {
-    val videoPath = "rescue_sheep_${sheepIndex + 1}"
+    val videoPath = when (sheepIndex) {
+        0 -> "videos/rescue_sheep_1.mp4"
+        1 -> "videos/rescue_sheep_2.mp4"
+        else -> "videos/rescue_sheep_1.mp4"
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.92f)),
+            .background(Color.Black.copy(alpha = 0.9f)),
         contentAlignment = Alignment.Center
     ) {
-        // 视频标题
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 40.dp)
-        ) {
-            Text(
-                text = "📹 救援小羊视频 ${sheepIndex + 1}",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
-
         // 视频播放器
         VideoPlayer(
             videoPath = videoPath,
             modifier = Modifier
-                .width(360.dp)
-                .height(270.dp),
+                .fillMaxWidth(0.85f)
+                .padding(32.dp),
             onPlaybackCompleted = {
                 onPlaybackComplete(sheepIndex)
             },
@@ -952,6 +944,14 @@ private fun BadgeAnimationOverlay(
     sheepIndex: Int?,
     onAnimationComplete: () -> Unit
 ) {
+    // 徽章动画显示后自动消失
+    LaunchedEffect(show) {
+        if (show) {
+            kotlinx.coroutines.delay(3000) // 显示3秒后自动消失
+            onAnimationComplete()
+        }
+    }
+
     AnimatedVisibility(
         visible = show,
         enter = scaleIn(animationSpec = spring(dampingRatio = 0.6f)) + fadeIn(),
@@ -960,7 +960,8 @@ private fun BadgeAnimationOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.8f)),
+                .background(Color.Black.copy(alpha = 0.8f))
+                .clickable(onClick = onAnimationComplete),
             contentAlignment = Alignment.Center
         ) {
             // 庆祝动画效果（烟花粒子）
@@ -976,7 +977,13 @@ private fun BadgeAnimationOverlay(
             )
 
             // 烟花粒子背景
-            Canvas(modifier = Modifier.fillMaxSize()) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        // 不拦截点击事件，让点击穿透到父元素
+                    }
+            ) {
                 val centerX = size.center.x
                 val centerY = size.center.y
                 val colors = listOf(
