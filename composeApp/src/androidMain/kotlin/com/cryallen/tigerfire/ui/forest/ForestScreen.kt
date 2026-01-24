@@ -884,12 +884,6 @@ private fun PlayVideoButton(
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
-            Text(
-                text = "视频",
-                fontSize = 9.sp,  // 缩小以匹配新的按钮尺寸 (原16.sp -> 9.sp)
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.9f)
-            )
         }
     }
 }
