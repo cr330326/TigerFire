@@ -193,7 +193,7 @@ fun ForestScreen(
                     text = "🌲 森林救援",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = Color.Black,
                     modifier = Modifier.drawBehind {
                         drawRoundRect(
                             color = Color(0xFF2A9D8F),
@@ -203,16 +203,16 @@ fun ForestScreen(
                     }
                 )
 
-                // 进度徽章（大而醒目）
+                // 进度徽章（大而醒目）- 更卡通化的配色
                 Box(
                     modifier = Modifier
                         .size(72.dp)
-                        .shadow(8.dp, CircleShape)
+                        .shadow(10.dp, CircleShape, spotColor = Color(0xFFFFE066), ambientColor = Color(0xFFFFD93D))
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    Color(0xFFF4A261),
-                                    Color(0xFFE76F51)
+                                    Color(0xFFFFD93D),  // 明亮黄色
+                                    Color(0xFFFF922B),  // 橙色
                                 )
                             ),
                             shape = CircleShape
@@ -415,8 +415,8 @@ private fun SheepClickable(
         label = "shake_angle"
     )
 
-    // 计算屏幕位置（像素）
-    val sheepSize = 140.dp
+    // 计算屏幕位置（像素）- 缩小小羊尺寸以匹配缩小的直升机
+    val sheepSize = 110.dp
     val sheepSizePx = with(LocalDensity.current) { sheepSize.toPx() }
     val xPosPx = (xRatio * screenWidth) - sheepSizePx / 2
     val finalYPos = if (!isRescued) {
@@ -502,7 +502,7 @@ private fun SheepClickable(
                 Box(
                     modifier = Modifier
                         .offset(xOffset, yOffset)
-                        .size(35.dp)
+                        .size(28.dp)  // 略微缩小火苗以匹配更小的小羊
                         .graphicsLayer {
                             rotationZ = shakeAngle
                             alpha = fireAlpha
@@ -510,7 +510,7 @@ private fun SheepClickable(
                 ) {
                     Text(
                         text = "🔥",
-                        fontSize = 28.sp
+                        fontSize = 22.sp  // 调整字体大小以匹配新的容器尺寸
                     )
                 }
             }
@@ -530,7 +530,7 @@ private fun SheepClickable(
         ) {
             Text(
                 text = "🐑",
-                fontSize = 80.sp,
+                fontSize = 65.sp,  // 调整字体大小以匹配新的容器尺寸
                 color = if (isRescued)
                     Color.White.copy(alpha = 0.5f)
                 else
@@ -613,8 +613,8 @@ private fun HelicopterAnimated(
         label = "helicopter_y"
     )
 
-    // 直升机尺寸
-    val helicopterSize = 180.dp
+    // 直升机尺寸 - 缩小到1/2以获得更好的平衡 (原180.dp -> 90.dp)
+    val helicopterSize = 90.dp
     val helicopterSizePx = with(LocalDensity.current) { helicopterSize.toPx() }
 
     // 计算屏幕位置
@@ -682,17 +682,17 @@ private fun HelicopterAnimated(
                 rotationZ = tiltAngle
             }
             .shadow(
-                elevation = if (state.isHelicopterFlying) 24.dp else 16.dp,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-                spotColor = Color(0xFFF4A261),
-                ambientColor = Color(0xFFF4A261)
+                elevation = if (state.isHelicopterFlying) 20.dp else 12.dp,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                spotColor = Color(0xFF4DABF7),  // 蓝色阴影 - 更卡通化
+                ambientColor = Color(0xFF74C0FC)
             )
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
             .background(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF87CEEB).copy(alpha = 0.95f),
-                        Color(0xFF5BA3C6).copy(alpha = 0.9f)
+                        Color(0xFF74C0FC).copy(alpha = 0.95f),  // 明亮天蓝
+                        Color(0xFF339AF0).copy(alpha = 0.9f),   // 深蓝色
                     )
                 )
             ),
@@ -736,7 +736,7 @@ private fun HelicopterAnimated(
         ) {
             Text(
                 text = "🚁",
-                fontSize = 100.sp
+                fontSize = 50.sp  // 缩小以匹配新的容器尺寸
             )
         }
 
@@ -788,13 +788,13 @@ private fun PlayVideoButton(
         label = "button_scale"
     )
 
-    // 脉冲动画
+    // 脉冲动画 - 优化为更柔和、更适合儿童的呼吸效果
     val infiniteTransition = rememberInfiniteTransition(label = "button_pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.2f,
+        targetValue = 1.2f,  // 缩小缩放幅度，更温和 (原1.2f -> 1.1f)
         animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = FastOutSlowInEasing),
+            animation = tween(600, easing = FastOutSlowInEasing),  // 放慢动画速度，更柔和 (原600ms -> 1000ms)
             repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
         ),
         label = "pulse_scale"
@@ -804,16 +804,17 @@ private fun PlayVideoButton(
         initialValue = 0.5f,
         targetValue = 0.8f,
         animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = FastOutSlowInEasing),
+            animation = tween(600, easing = FastOutSlowInEasing),  // 同步速度
             repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
         ),
         label = "pulse_alpha"
     )
 
-    // 计算按钮位置（在直升机下方）
-    val buttonSize = 120.dp
+    // 计算按钮位置（在直升机下方）- 缩小到1/2以获得更好的视觉平衡 (原120.dp -> 60.dp)
+    val buttonSize = 60.dp
     val buttonSizePx = with(LocalDensity.current) { buttonSize.toPx() }
-    val yOffsetPx = with(LocalDensity.current) { 80.dp.toPx() }
+    // 调整间距：由于按钮缩小，间距也需要相应调整以保持视觉平衡
+    val yOffsetPx = with(LocalDensity.current) { 55.dp.toPx() }  // 原80.dp -> 55.dp
     val xPosPx = (state.helicopterX * screenWidth) - buttonSizePx / 2
     val yPosPx = (state.helicopterY * screenHeight) + yOffsetPx
 
@@ -830,15 +831,15 @@ private fun PlayVideoButton(
             .shadow(
                 elevation = 16.dp,
                 shape = CircleShape,
-                spotColor = Color(0xFFF4A261),
-                ambientColor = Color(0xFFF4A261)
+                spotColor = Color(0xFFFFE066),  // 明亮黄色阴影
+                ambientColor = Color(0xFFFFD93D)
             )
             .clip(CircleShape)
             .background(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFF4A261),
-                        Color(0xFFE76F51)
+                        Color(0xFFFFD93D),  // 明亮黄色
+                        Color(0xFFFF922B),  // 橙色
                     )
                 )
             )
@@ -868,24 +869,24 @@ private fun PlayVideoButton(
                 )
         )
 
-        // 播放图标和文字
+        // 播放图标和文字 - 调整字体大小以匹配新的容器尺寸
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = "▶️",
-                fontSize = 36.sp
+                fontSize = 18.sp  // 缩小以匹配新的按钮尺寸 (原36.sp -> 18.sp)
             )
             Text(
                 text = "播放",
-                fontSize = 18.sp,
+                fontSize = 11.sp,  // 缩小以匹配新的按钮尺寸 (原18.sp -> 11.sp)
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
             Text(
                 text = "视频",
-                fontSize = 16.sp,
+                fontSize = 9.sp,  // 缩小以匹配新的按钮尺寸 (原16.sp -> 9.sp)
                 fontWeight = FontWeight.Medium,
                 color = Color.White.copy(alpha = 0.9f)
             )
@@ -1097,7 +1098,7 @@ private fun BadgeAnimationOverlay(
 
                 Spacer(modifier = Modifier.height(56.dp))
 
-                // 点击继续按钮
+                // 确认按钮
                 androidx.compose.foundation.shape.RoundedCornerShape(32.dp)
                 Box(
                     modifier = Modifier
@@ -1114,7 +1115,7 @@ private fun BadgeAnimationOverlay(
                         .clickable(onClick = onAnimationComplete)
                 ) {
                     Text(
-                        text = "点击继续 ▶",
+                        text = "确认 ▶",
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -1177,12 +1178,12 @@ private fun ForestFireBackgroundEnhanced() {
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1a3a2a),  // 深绿
-                        Color(0xFF2A4D3F),  // 森林绿
-                        Color(0xFF3D5A50),  // 中绿
-                        Color(0xFF4A6356),  // 浅绿
-                        Color(0xFF2A4D3F),  // 森林绿
-                        Color(0xFF1a3a2a),  // 深绿
+                        Color(0xFF87CEEB),  // 天蓝色 - 更明亮的天空
+                        Color(0xFF98D8C8),  // 薄荷绿 - 卡通感
+                        Color(0xFF52B788),  // 清新绿
+                        Color(0xFF40916C),  // 森林绿
+                        Color(0xFF2D6A4F),  // 深绿
+                        Color(0xFF1B4332),  // 最深绿
                     )
                 )
             )
@@ -1192,12 +1193,12 @@ private fun ForestFireBackgroundEnhanced() {
             val canvasWidth = size.width
             val canvasHeight = size.height
 
-            // 火焰颜色渐变
+            // 火焰颜色渐变 - 更卡通化的明亮色彩
             val fireColors = listOf(
-                Color(0xFFFF6B35).copy(alpha = fireAlpha),        // 橙红
-                Color(0xFFF7931E).copy(alpha = fireAlpha * 0.9f), // 橙色
-                Color(0xFFFFCC00).copy(alpha = fireAlpha * 0.7f), // 黄色
-                Color(0xFFFF4500).copy(alpha = fireAlpha * 0.5f), // 红色
+                Color(0xFFFF6B6B).copy(alpha = fireAlpha),        // 明亮橙红
+                Color(0xFFFFA07A).copy(alpha = fireAlpha * 0.9f), // 柔和橙色
+                Color(0xFFFFD93D).copy(alpha = fireAlpha * 0.8f), // 明亮黄色
+                Color(0xFFFFEE52).copy(alpha = fireAlpha * 0.6f), // 金黄色
             )
 
             // 绘制多层火焰（从底部升起）
@@ -1312,6 +1313,26 @@ private fun ForestFireBackgroundEnhanced() {
                 ),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(20f)
             )
+
+            // 绘制卡通云朵 - 儿童友好的装饰元素
+            val cloudPositions = listOf(
+                0.15f to 0.12f,  // 云朵1
+                0.55f to 0.08f,  // 云朵2
+                0.85f to 0.15f,  // 云朵3
+            )
+
+            cloudPositions.forEach { (xRatio, yRatio) ->
+                val cloudX = canvasWidth * xRatio
+                val cloudY = canvasHeight * yRatio
+
+                // 云朵主体（圆形组合）
+                val cloudColor = Color.White.copy(alpha = 0.85f)
+                drawCircle(color = cloudColor, radius = 45f, center = Offset(cloudX, cloudY))
+                drawCircle(color = cloudColor, radius = 35f, center = Offset(cloudX - 40f, cloudY + 10f))
+                drawCircle(color = cloudColor, radius = 38f, center = Offset(cloudX + 40f, cloudY + 10f))
+                drawCircle(color = cloudColor, radius = 30f, center = Offset(cloudX - 25f, cloudY - 20f))
+                drawCircle(color = cloudColor, radius = 32f, center = Offset(cloudX + 25f, cloudY - 20f))
+            }
         }
     }
 }
