@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
@@ -67,6 +68,7 @@ class ParentViewModel(
             is ParentEvent.BackToMapClicked -> handleBackToMap()
             is ParentEvent.UpdateSessionTimeLimit -> handleUpdateSessionTimeLimit(event.minutes)
             is ParentEvent.UpdateDailyTimeLimit -> handleUpdateDailyTimeLimit(event.minutes)
+            is ParentEvent.UpdateReminderTime -> handleUpdateReminderTime(event.minutes)
             is ParentEvent.ResetProgressClicked -> handleResetProgressClicked()
             is ParentEvent.ConfirmResetProgress -> handleConfirmResetProgress()
             is ParentEvent.CancelResetProgress -> handleCancelResetProgress()
@@ -109,6 +111,23 @@ class ParentViewModel(
             reverificationQuestion = generateMathQuestion(),
             pendingAction = ParentAction.UPDATE_TIME_SETTINGS
         )
+    }
+
+    /**
+     * 处理更新提前提醒时间
+     *
+     * @param minutes 提前提醒时长（分钟），0表示关闭提醒
+     */
+    private fun handleUpdateReminderTime(minutes: Int) {
+        // 提前提醒设置不需要验证，直接更新
+        viewModelScope.launch {
+            // 获取当前settings并更新
+            progressRepository.getParentSettings().first().let { currentSettings ->
+                val updatedSettings = currentSettings.copy(reminderMinutesBefore = minutes)
+                progressRepository.updateParentSettings(updatedSettings)
+            }
+        }
+        sendEffect(ParentEffect.ShowSettingsSavedHint)
     }
 
     /**

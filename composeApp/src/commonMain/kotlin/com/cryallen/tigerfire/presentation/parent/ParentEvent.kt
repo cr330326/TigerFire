@@ -26,6 +26,13 @@ sealed class ParentEvent {
     data class UpdateDailyTimeLimit(val minutes: Int) : ParentEvent()
 
     /**
+     * 更新提前提醒时间
+     *
+     * @property minutes 提前提醒时长（分钟），0表示关闭提醒
+     */
+    data class UpdateReminderTime(val minutes: Int) : ParentEvent()
+
+    /**
      * 点击重置游戏进度按钮
      */
     data object ResetProgressClicked : ParentEvent()

@@ -108,7 +108,7 @@ fun MapScreen(
     LaunchedEffect(isJumping, pendingNavigationScene) {
         // 当跳跃动画结束且有待导航的场景时
         if (!isJumping && pendingNavigationScene != null) {
-            delay(200) // 延迟 200ms
+            //delay(200) // 延迟 200ms
             // 根据待导航场景执行导航
             when (pendingNavigationScene) {
                 SceneType.FIRE_STATION -> onNavigateToFireStation()
