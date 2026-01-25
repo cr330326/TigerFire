@@ -6,10 +6,10 @@
 
 | 属性 | 值 |
 |------|-----|
-| **文档版本** | v1.3 |
+| **文档版本** | v1.4 |
 | **创建日期** | 2026-01-19 |
-| **更新日期** | 2026-01-24 |
-| **更新内容** | 更新森林场景为点击交互：点击小羊→直升机自动飞行→显示放下梯子按钮→播放救援视频 |
+| **更新日期** | 2026-01-25 |
+| **更新内容** | 新增崩溃监控与日志记录系统架构设计，添加稳定性和错误追踪相关技术方案 |
 | **适用范围** | 完整 App 功能实现 |
 | **技术栈** | Kotlin Multiplatform Mobile (KMM) |
 | **架构模式** | Clean Architecture + MVVM |
@@ -1026,9 +1026,496 @@ CREATE TABLE Badge (
 
 ---
 
-## 8. 技术风险与约束说明
+## 8. 崩溃监控与日志记录系统
 
-### 8.1 潜在风险点
+### 8.1 系统架构设计
+
+#### 8.1.1 整体架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        崩溃监控系统架构                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │   平台层     │    │   Shared层   │    │   数据层     │      │
+│  │              │    │              │    │              │      │
+│  │ Android:     │    │ CrashLogger  │    │ LogFile      │      │
+│  │ - Thread     │───▶│ (expect/     │───▶│ Manager      │      │
+│  │   Uncaught   │    │  actual)     │    │              │      │
+│  │   Handler    │    │              │    │ filesDir/    │      │
+│  │              │    │ ErrorLogger  │    │ crash_logs/  │      │
+│  │ iOS:         │    │ (记录非致命   │    │              │      │
+│  │ - NSSet      │    │  错误)       │    │ JSON 格式    │      │
+│  │   Uncaught   │    │              │    │ 自动清理     │      │
+│  │   Exception  │    │              │    │ (最多20个)   │      │
+│  └──────────────┘    └──────────────┘    └──────────────┘      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 8.1.2 模块职责
+
+**平台层（Platform）**：
+- Android: 设置 `Thread.UncaughtExceptionHandler` 捕获全局异常
+- iOS: 设置 `NSSetUncaughtExceptionHandler` 捕获全局异常
+- 收集平台特定信息（设备型号、OS 版本、内存状态）
+
+**Shared 层（共享）**：
+- `CrashLogger`: 定义 expect/actual 接口，统一崩溃日志接口
+- `ErrorLogger`: 记录非致命错误（视频加载失败、动画解析失败等）
+- `CrashInfo`: 定义崩溃信息数据模型
+
+**数据层（Data）**：
+- `LogFileManager`: 负责日志文件的读写、清理、格式化
+
+### 8.2 Shared 层核心模型设计
+
+#### 8.2.1 崩溃信息模型
+
+```kotlin
+// CrashInfo.kt
+@Serializable
+data class CrashInfo(
+    val appVersion: String,              // App 版本号
+    val buildNumber: String,             // 构建号
+    val deviceModel: String,             // 设备型号
+    val osVersion: String,               // 操作系统版本
+    val timestamp: Long,                 // 崩溃时间戳（毫秒）
+    val crashType: String,               // 崩溃类型（异常类名）
+    val stackTrace: String,              // 完整堆栈跟踪
+    val scene: String?,                  // 崩溃时所在场景（可选）
+    val userAction: String?,             // 用户最后操作（可选）
+    val memoryUsage: Long,               // 当前内存占用（MB）
+    val deviceFreeMemory: Long,          // 设备可用内存（MB）
+    val threadName: String?              // 崩溃线程名称（可选）
+)
+
+// NonFatalError.kt
+@Serializable
+data class NonFatalError(
+    val timestamp: Long,
+    val errorType: ErrorType,            // 错误类型枚举
+    val message: String,
+    val details: Map<String, String>,    // 额外详情
+    val scene: String?
+)
+
+enum class ErrorType {
+    VIDEO_LOAD_FAILED,
+    LOTTIE_PARSE_FAILED,
+    DATABASE_READ_ERROR,
+    DATABASE_WRITE_ERROR,
+    MEMORY_WARNING,
+    RESOURCE_NOT_FOUND
+}
+```
+
+#### 8.2.2 CrashLogger 接口
+
+```kotlin
+// CrashLogger.kt
+interface CrashLogger {
+    /**
+     * 初始化崩溃日志系统
+     */
+    fun initialize()
+
+    /**
+     * 记录崩溃信息（由平台层异常处理器调用）
+     */
+    fun logCrash(crashInfo: CrashInfo)
+
+    /**
+     * 记录非致命错误
+     */
+    fun logError(error: NonFatalError)
+
+    /**
+     * 设置当前场景（用于崩溃时记录场景信息）
+     */
+    fun setCurrentScene(scene: String)
+
+    /**
+     * 记录用户最后操作
+     */
+    fun setLastAction(action: String)
+
+    /**
+     * 获取所有日志文件路径
+     */
+    fun getLogFiles(): List<String>
+
+    /**
+     * 清理旧日志文件
+     */
+    fun cleanupOldLogs()
+}
+
+// 工厂方法
+fun createCrashLogger(): CrashLogger
+```
+
+### 8.3 平台层实现要点
+
+#### 8.3.1 Android 实现
+
+```kotlin
+// androidMain/.../CrashLoggerImpl.kotlin
+actual class CrashLogger actual constructor(
+    private val context: Context
+) : CrashLogger {
+
+    private val logFileManager = LogFileManager(context.filesDir)
+
+    actual fun initialize() {
+        // 设置全局异常处理器
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            handleCrash(thread, throwable)
+        }
+
+        // 监听内存警告
+        (context as? Application)?.registerComponentCallbacks(
+            object : ComponentCallbacks2 {
+                override fun onTrimMemory(level: Int) {
+                    logError(NonFatalError(
+                        timestamp = System.currentTimeMillis(),
+                        errorType = ErrorType.MEMORY_WARNING,
+                        message = "Memory trim level: $level",
+                        details = mapOf("level" to level.toString()),
+                        scene = currentScene.get()
+                    ))
+                }
+                // ... 其他方法
+            }
+        )
+    }
+
+    private fun handleCrash(thread: Thread, throwable: Throwable) {
+        val crashInfo = CrashInfo(
+            appVersion = BuildConfig.VERSION_NAME,
+            buildNumber = BuildConfig.VERSION_CODE.toString(),
+            deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}",
+            osVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+            timestamp = System.currentTimeMillis(),
+            crashType = throwable::class.simpleName ?: "Unknown",
+            stackTrace = Log.getStackTraceString(throwable),
+            scene = currentScene.get(),
+            userAction = lastAction.get(),
+            memoryUsage = getMemoryUsage(),
+            deviceFreeMemory = getFreeMemory(),
+            threadName = thread.name
+        )
+
+        logCrash(crashInfo)
+
+        // 调用默认处理器（显示崩溃对话框）
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        defaultHandler?.uncaughtException(thread, throwable)
+    }
+
+    actual fun logCrash(crashInfo: CrashInfo) {
+        val json = Json.encodeToString(crashInfo)
+        val fileName = "crash_${crashInfo.timestamp}_${getDeviceId()}.log"
+        logFileManager.writeLog(fileName, json)
+    }
+
+    actual fun logError(error: NonFatalError) {
+        val json = Json.encodeToString(error)
+        val fileName = "error_${error.timestamp}.log"
+        logFileManager.writeLog(fileName, json)
+    }
+
+    // ... 其他方法实现
+}
+```
+
+#### 8.3.2 iOS 实现
+
+```swift
+// iosMain/.../CrashLoggerImpl.swift
+actual class CrashLogger: CrashLoggerProtocol {
+
+    private let logFileManager: LogFileManager
+
+    actual init() {
+        self.logFileManager = LogFileManager()
+    }
+
+    actual func initialize() {
+        // 设置全局异常处理器
+        NSSetUncaughtExceptionHandler { exception in
+            self.handleCrash(exception: exception)
+        }
+
+        // 监听内存警告
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleCrash(exception: NSException) {
+        let crashInfo = CrashInfo(
+            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
+            buildNumber: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "",
+            deviceModel: UIDevice.current.model,
+            osVersion: UIDevice.current.systemVersion,
+            timestamp: Date().timeIntervalSince1970 * 1000,
+            crashType: exception.name.rawValue,
+            stackTrace: exception.callStackSymbols.joined(separator: "\n"),
+            scene: currentScene.value,
+            userAction: lastAction.value,
+            memoryUsage: getMemoryUsage(),
+            deviceFreeMemory: getFreeMemory(),
+            threadName: Thread.current.name ?? ""
+        )
+
+        logCrash(crashInfo: crashInfo)
+    }
+
+    @objc private func handleMemoryWarning() {
+        let error = NonFatalError(
+            timestamp: Date().timeIntervalSince1970 * 1000,
+            errorType: .memoryWarning,
+            message: "Memory warning received",
+            details: ["memory_level": "warning"],
+            scene: currentScene.value
+        )
+        logError(error: error)
+    }
+
+    // ... 其他方法实现
+}
+```
+
+### 8.4 LogFileManager 实现
+
+```kotlin
+// LogFileManager.kt
+class LogFileManager(private val baseDir: File) {
+
+    private val logsDir = File(baseDir, "crash_logs").apply {
+        mkdirs()
+    }
+
+    private val maxLogFiles = 20
+    private val maxFileSize = 100 * 1024 // 100 KB
+
+    fun writeLog(fileName: String, content: String) {
+        try {
+            val logFile = File(logsDir, fileName)
+
+            // 检查文件大小
+            if (logFile.exists() && logFile.length() > maxFileSize) {
+                // 文件过大，不写入
+                return
+            }
+
+            // 写入日志
+            logFile.writeText(content, Charsets.UTF_8)
+
+            // 清理旧日志
+            cleanupOldLogs()
+        } catch (e: Exception) {
+            // 日志写入失败，静默处理（避免递归崩溃）
+            e.printStackTrace()
+        }
+    }
+
+    fun cleanupOldLogs() {
+        try {
+            val logFiles = logsDir.listFiles()?.sortedByDescending { it.lastModified() }
+
+            logFiles?.drop(maxLogFiles)?.forEach { it.delete() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getLogFiles(): List<String> {
+        return logsDir.listFiles()?.map { it.absolutePath } ?: emptyList()
+    }
+
+    fun clearAllLogs() {
+        logsDir.listFiles()?.forEach { it.delete() }
+    }
+}
+```
+
+### 8.5 与现有系统集成
+
+#### 8.5.1 ViewModel 集成
+
+```kotlin
+// 基类 ViewModel，所有场景 ViewModel 继承
+abstract class BaseViewModel(
+    protected val crashLogger: CrashLogger
+) : ViewModel() {
+
+    protected val currentScene = SceneType.UNKNOWN
+
+    init {
+        crashLogger.setCurrentScene(currentScene.name)
+    }
+
+    protected fun <T> safeCall(
+        action: String,
+        block: () -> T
+    ): T? {
+        crashLogger.setLastAction(action)
+        return try {
+            block()
+        } catch (e: Exception) {
+            crashLogger.logError(NonFatalError(
+                timestamp = System.currentTimeMillis(),
+                errorType = when (e) {
+                    is IOException -> ErrorType.RESOURCE_NOT_FOUND
+                    is JsonSerializationException -> ErrorType.DATABASE_READ_ERROR
+                    else -> ErrorType.DATABASE_WRITE_ERROR
+                },
+                message = e.message ?: "Unknown error",
+                details = mapOf("action" to action),
+                scene = currentScene.name
+            ))
+            null
+        }
+    }
+}
+```
+
+#### 8.5.2 资源加载集成
+
+```kotlin
+// 扩展函数，用于安全加载资源
+suspend fun <T> safeResourceLoad(
+    crashLogger: CrashLogger,
+    resourceType: ResourceType,
+    resourcePath: String,
+    loader: suspend () -> T
+): T? {
+    return try {
+        loader()
+    } catch (e: Exception) {
+        val errorType = when (resourceType) {
+            ResourceType.VIDEO -> ErrorType.VIDEO_LOAD_FAILED
+            ResourceType.LOTTIE -> ErrorType.LOTTIE_PARSE_FAILED
+            ResourceType.AUDIO -> ErrorType.RESOURCE_NOT_FOUND
+        }
+
+        crashLogger.logError(NonFatalError(
+            timestamp = System.currentTimeMillis(),
+            errorType = errorType,
+            message = e.message ?: "Failed to load resource",
+            details = mapOf(
+                "resource_path" to resourcePath,
+                "error_class" to e::class.simpleName ?: "Unknown"
+            ),
+            scene = crashLogger.getCurrentScene()
+        ))
+        null
+    }
+}
+```
+
+### 8.6 家长模式日志查看
+
+在家长模式中添加日志管理功能：
+
+```kotlin
+// ParentViewModel 新增功能
+sealed class ParentEffect {
+    // ... 现有 Effect
+    object ShowCrashLogs : ParentEffect()      // 显示崩溃日志列表
+    data class ExportLogs(val destination: String) : ParentEffect()
+    data class DeleteLogFiles(val count: Int) : ParentEffect()
+}
+
+// ParentState 新增字段
+data class ParentState(
+    // ... 现有字段
+    val crashLogFiles: List<CrashLogFileItem> = emptyList(),
+    val showLogsManagement: Boolean = false
+)
+
+data class CrashLogFileItem(
+    val fileName: String,
+    val timestamp: Long,
+    val crashType: String,
+    val fileSize: Long
+)
+```
+
+**功能说明**：
+- 家长可在家长模式中查看崩溃日志列表
+- 支持导出日志（通过系统分享功能）
+- 支持删除所有日志
+- 显示最近崩溃的统计信息
+
+### 8.7 稳定性保障措施
+
+#### 8.7.1 内存管理
+
+| 措施 | 实现方式 |
+|------|---------|
+| **大对象释放** | 场景切换时主动释放 Lottie Composition 和 VideoPlayer |
+| **图片缓存控制** | 使用 LRU 缓存，限制最大缓存数量为 10 张 |
+| **协程取消** | ViewModel 清除时取消所有子协程 |
+| **弱引用** | 回调中使用弱引用避免内存泄漏 |
+
+#### 8.7.2 线程安全
+
+| 措施 | 实现方式 |
+|------|---------|
+| **数据库访问** | 使用单例数据库连接 + 同步锁 |
+| **日志写入** | 使用 Mutex 保证并发写入安全 |
+| **状态更新** | StateFlow 自动保证线程安全 |
+| **资源加载** | 使用 Dispatchers.IO 限制并发数 |
+
+#### 8.7.3 资源预加载策略
+
+```kotlin
+// ResourcePreloader.kt
+class ResourcePreloader(
+    private val resourcePathProvider: ResourcePathProvider,
+    private val crashLogger: CrashLogger
+) {
+    suspend fun preloadSceneResources(scene: SceneType) {
+        withContext(Dispatchers.IO) {
+            try {
+                when (scene) {
+                    SceneType.WELCOME -> {
+                        // 预加载启动页资源
+                        preloadLottie("anim_truck_enter.json")
+                        preloadAudio("voice_welcome_greeting.mp3")
+                    }
+                    SceneType.FIRE_STATION -> {
+                        // 预加载消防站资源（按需）
+                        // 不预加载视频，避免内存压力
+                    }
+                    // ... 其他场景
+                }
+            } catch (e: Exception) {
+                crashLogger.logError(NonFatalError(
+                    timestamp = System.currentTimeMillis(),
+                    errorType = ErrorType.RESOURCE_NOT_FOUND,
+                    message = "Preload failed for $scene",
+                    details = mapOf("scene" to scene.name),
+                    scene = scene.name
+                ))
+            }
+        }
+    }
+}
+```
+
+---
+
+## 9. 技术风险与约束说明
+
+### 9.1 潜在风险点
 
 | 风险项 | 描述 | 影响 | 缓解措施 |
 |-------|------|------|---------|
@@ -1037,7 +1524,7 @@ CREATE TABLE Badge (
 | **音视频同步** | 视频播放与状态更新可能不同步 | 徽章过早/过晚弹出 | 严格使用播放完成回调 + 状态机管理 |
 | **时间控制绕过** | 儿童可能通过系统设置绕过时间限制 | 家长管控失效 | 仅依赖 App 内计时，不与系统时间绑定；文档说明限制 |
 
-### 8.2 明确不在本阶段解决的问题
+### 9.2 明确不在本阶段解决的问题
 
 以下问题**不在当前实现范围**，可在后续迭代中考虑：
 
@@ -1053,7 +1540,7 @@ CREATE TABLE Badge (
 7. **无障碍增强**：依赖系统默认无障碍支持，不做额外优化
 8. **性能监控与崩溃上报**：无网络权限，不集成第三方分析工具
 
-### 8.3 关键技术约束
+### 9.3 关键技术约束
 
 **必须遵守**：
 - 安装包体积 ≤300 MB（含所有资源）
@@ -1062,6 +1549,12 @@ CREATE TABLE Badge (
 - 零网络请求（完全离线）
 - 不访问任何敏感权限（位置、通讯录、相册等）
 
+**稳定性要求（新增）**：
+- 崩溃率 ≤0.1%（端到端测试）
+- 白屏率 ≤0.05%
+- ANR 率 ≤0.1%
+- 长时间运行无内存泄漏
+
 **推荐约束**：
 - 视频时长单个 ≤45 秒（学校场景）
 - Lottie 动画文件 ≤500 KB/个
@@ -1069,9 +1562,9 @@ CREATE TABLE Badge (
 
 ---
 
-## 9. 后续工作指引
+## 10. 后续工作指引
 
-### 9.1 基于本方案的下一步行动
+### 10.1 基于本方案的下一步行动
 
 1. **UI/UE 设计**：
    - 设计师根据本方案创建高保真原型
@@ -1093,7 +1586,7 @@ CREATE TABLE Badge (
    - 验证 Lottie / ExoPlayer / AVPlayer 集成
    - 验证 SQLDelight 数据持久化
 
-### 9.2 关键里程碑建议
+### 10.2 关键里程碑建议
 
 | Milestone | 交付内容 | 验收标准 |
 |-----------|---------|---------|
