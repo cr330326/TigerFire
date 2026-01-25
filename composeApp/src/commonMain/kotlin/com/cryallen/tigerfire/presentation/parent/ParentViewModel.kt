@@ -74,6 +74,11 @@ class ParentViewModel(
             is ParentEvent.CancelResetProgress -> handleCancelResetProgress()
             is ParentEvent.SubmitReverificationAnswer -> handleSubmitReverification(event.answer)
             is ParentEvent.CancelReverification -> handleCancelReverification()
+            is ParentEvent.ShowTimeSettingsDialog -> handleShowTimeSettingsDialog()
+            is ParentEvent.DismissTimeSettingsDialog -> handleDismissTimeSettingsDialog()
+            is ParentEvent.ToggleSessionTimeLimit -> handleToggleSessionTimeLimit(event.enabled)
+            is ParentEvent.ToggleDailyTimeLimit -> handleToggleDailyTimeLimit(event.enabled)
+            is ParentEvent.SaveTimeSettings -> handleSaveTimeSettings()
         }
     }
 
@@ -213,6 +218,82 @@ class ParentViewModel(
             reverificationQuestion = null,
             pendingAction = null
         )
+    }
+
+    /**
+     * 处理显示时间设置对话框
+     */
+    private fun handleShowTimeSettingsDialog() {
+        // 从当前settings读取开关状态并显示对话框
+        val currentSettings = _state.value.settings
+        _state.value = _state.value.copy(
+            showTimeSettingsDialog = true,
+            sessionTimeLimitEnabled = currentSettings.sessionDurationMinutes > 0,
+            dailyTimeLimitEnabled = false // 当前模型不支持每日限制，默认为false
+        )
+    }
+
+    /**
+     * 处理关闭时间设置对话框
+     */
+    private fun handleDismissTimeSettingsDialog() {
+        _state.value = _state.value.copy(
+            showTimeSettingsDialog = false
+        )
+    }
+
+    /**
+     * 处理切换每次使用时长限制
+     */
+    private fun handleToggleSessionTimeLimit(enabled: Boolean) {
+        _state.value = _state.value.copy(
+            sessionTimeLimitEnabled = enabled
+        )
+    }
+
+    /**
+     * 处理切换每日总时长限制（暂未实现）
+     */
+    private fun handleToggleDailyTimeLimit(enabled: Boolean) {
+        // TODO: 需要先在ParentSettings模型中添加dailyLimitMinutes字段
+        _state.value = _state.value.copy(
+            dailyTimeLimitEnabled = enabled
+        )
+    }
+
+    /**
+     * 处理保存时间设置
+     */
+    private fun handleSaveTimeSettings() {
+        viewModelScope.launch {
+            val currentState = _state.value
+
+            // 获取当前settings
+            progressRepository.getParentSettings().first().let { currentSettings ->
+                // 更新settings（如果开关关闭，则使用默认值15分钟）
+                val updatedSettings = currentSettings.copy(
+                    sessionDurationMinutes = if (currentState.sessionTimeLimitEnabled) {
+                        if (currentSettings.sessionDurationMinutes > 0) {
+                            currentSettings.sessionDurationMinutes
+                        } else {
+                            30 // 默认30分钟
+                        }
+                    } else {
+                        15 // 禁用时使用默认值
+                    }
+                    // TODO: 添加dailyLimitMinutes字段后在此更新
+                )
+                progressRepository.updateParentSettings(updatedSettings)
+            }
+
+            // 关闭对话框
+            _state.value = currentState.copy(
+                showTimeSettingsDialog = false
+            )
+
+            // 发送保存成功提示
+            sendEffect(ParentEffect.ShowSettingsSavedHint)
+        }
     }
 
     // ==================== 敏感操作执行 ====================

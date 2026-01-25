@@ -77,17 +77,17 @@ class AndroidAudioManager(
     private fun getSoundResourceName(type: SoundType, scene: SceneType? = null): String {
         return when (type) {
             SoundType.CLICK -> when (scene) {
-                SceneType.FIRE_STATION -> "fire_click"
-                SceneType.SCHOOL -> "school_click"
-                SceneType.FOREST -> "forest_click"
+                SceneType.FIRE_STATION -> "click"
+                SceneType.SCHOOL -> "click"
+                SceneType.FOREST -> "click"
                 null -> "click"
             }
             SoundType.SUCCESS -> "success"
             SoundType.HINT -> "hint"
-            SoundType.DRAG -> "drag"
-            SoundType.SNAP -> "snap"
-            SoundType.BADGE -> "badge"
-            SoundType.ALL_COMPLETED -> "all_completed"
+            SoundType.DRAG -> "helicopter"
+            SoundType.SNAP -> "water"
+            SoundType.BADGE -> "collect"
+            SoundType.ALL_COMPLETED -> "truck_horn"
             SoundType.ALERT -> "alert"
             SoundType.VOICE -> "voice" // 语音需要额外路径
         }

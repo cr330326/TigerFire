@@ -58,4 +58,33 @@ sealed class ParentEvent {
      * 取消重新验证
      */
     data object CancelReverification : ParentEvent()
+
+    /**
+     * 显示时间设置对话框
+     */
+    data object ShowTimeSettingsDialog : ParentEvent()
+
+    /**
+     * 关闭时间设置对话框
+     */
+    data object DismissTimeSettingsDialog : ParentEvent()
+
+    /**
+     * 切换每次使用时长限制
+     *
+     * @property enabled 是否启用
+     */
+    data class ToggleSessionTimeLimit(val enabled: Boolean) : ParentEvent()
+
+    /**
+     * 切换每日总时长限制
+     *
+     * @property enabled 是否启用
+     */
+    data class ToggleDailyTimeLimit(val enabled: Boolean) : ParentEvent()
+
+    /**
+     * 保存时间设置
+     */
+    data object SaveTimeSettings : ParentEvent()
 }

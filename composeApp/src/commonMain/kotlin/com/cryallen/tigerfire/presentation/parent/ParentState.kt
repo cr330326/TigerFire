@@ -53,7 +53,22 @@ data class ParentState(
     /**
      * 当前正在执行的操作（需要重新验证）
      */
-    val pendingAction: ParentAction? = null
+    val pendingAction: ParentAction? = null,
+
+    /**
+     * 是否显示时间设置对话框
+     */
+    val showTimeSettingsDialog: Boolean = false,
+
+    /**
+     * 每次使用时长限制开关状态
+     */
+    val sessionTimeLimitEnabled: Boolean = false,
+
+    /**
+     * 每日总时长限制开关状态
+     */
+    val dailyTimeLimitEnabled: Boolean = false
 )
 
 /**

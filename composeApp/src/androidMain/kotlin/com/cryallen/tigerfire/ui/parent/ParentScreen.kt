@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -163,6 +164,9 @@ fun ParentScreen(
                             },
                             onReminderToggle = { enabled ->
                                 viewModel.onEvent(ParentEvent.UpdateReminderTime(if (enabled) 2 else 0))
+                            },
+                            onShowDialog = {
+                                viewModel.onEvent(ParentEvent.ShowTimeSettingsDialog)
                             }
                         )
                     }
@@ -206,6 +210,26 @@ fun ParentScreen(
                 },
                 onDismiss = {
                     viewModel.onEvent(ParentEvent.CancelReverification)
+                }
+            )
+        }
+
+        // 时间设置对话框
+        if (state.showTimeSettingsDialog) {
+            TimeSettingsDialog(
+                sessionEnabled = state.sessionTimeLimitEnabled,
+                dailyEnabled = state.dailyTimeLimitEnabled,
+                onSessionToggle = { enabled ->
+                    viewModel.onEvent(ParentEvent.ToggleSessionTimeLimit(enabled))
+                },
+                onDailyToggle = { enabled ->
+                    viewModel.onEvent(ParentEvent.ToggleDailyTimeLimit(enabled))
+                },
+                onSave = {
+                    viewModel.onEvent(ParentEvent.SaveTimeSettings)
+                },
+                onDismiss = {
+                    viewModel.onEvent(ParentEvent.DismissTimeSettingsDialog)
                 }
             )
         }
@@ -685,16 +709,20 @@ private fun WeeklyUsageChart() {
 
 /**
  * 时间设置卡片 - 现代化设计
+ *
+ * 点击卡片可弹出详细设置对话框
  */
 @Composable
 private fun TimeSettingsCard(
     sessionTimeLimit: Int,
     reminderEnabled: Boolean = true,
     onSessionTimeLimitChange: (Int) -> Unit,
-    onReminderToggle: (Boolean) -> Unit = {}
+    onReminderToggle: (Boolean) -> Unit = {},
+    onShowDialog: () -> Unit = {}
 ) {
     // 卡片入场动画
     var cardVisible by remember { mutableStateOf(false) }
+    var cardScale by remember { mutableStateOf(1f) }
     LaunchedEffect(Unit) {
         delay(200)
         cardVisible = true
@@ -706,11 +734,16 @@ private fun TimeSettingsCard(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize()
+            .scale(cardScale)
             .shadow(
                 elevation = 16.dp,
                 shape = RoundedCornerShape(24.dp),
                 spotColor = Color(0xFFFFD700).copy(alpha = 0.5f)
             )
+            .clickable {
+                cardScale = 0.97f
+                onShowDialog()
+            }
             .background(
                 color = Color.White.copy(alpha = 0.95f),
                 shape = RoundedCornerShape(24.dp)
@@ -731,6 +764,12 @@ private fun TimeSettingsCard(
             }
             .padding(20.dp)
     ) {
+        LaunchedEffect(cardScale) {
+            if (cardScale != 1f) {
+                delay(100)
+                cardScale = 1f
+            }
+        }
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1575,6 +1614,231 @@ private fun NumberButtonRow(
                     buttonScale = 1f
                 }
             }
+        }
+    }
+}
+
+/**
+ * 时间设置对话框 - 参考截图设计
+ *
+ * 两个开关 + 保存按钮的弹出对话框
+ */
+@Composable
+private fun TimeSettingsDialog(
+    sessionEnabled: Boolean = false,
+    dailyEnabled: Boolean = false,
+    onSessionToggle: (Boolean) -> Unit = {},
+    onDailyToggle: (Boolean) -> Unit = {},
+    onSave: () -> Unit = {},
+    onDismiss: () -> Unit = {}
+) {
+    // 对话框动画
+    var dialogScale by remember { mutableStateOf(0.7f) }
+    var dialogAlpha by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        dialogScale = 1f
+        dialogAlpha = 1f
+    }
+
+    // 背景遮罩
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .alpha(dialogAlpha)
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        // 对话框内容 - 参考截图样式
+        Box(
+            modifier = Modifier
+                .scale(dialogScale)
+                .width(320.dp)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    spotColor = Color(0xFFE63946).copy(alpha = 0.4f)
+                )
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(24.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // 标题
+                Text(
+                    text = "使用时长设置",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A5F7A)
+                )
+
+                Divider(
+                    color = Color(0xFFE0E0E0),
+                    thickness = 1.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // 每次使用时长开关
+                ToggleRow(
+                    label = "每次使用时长限制",
+                    subtitle = "单次使用最长时间",
+                    isEnabled = sessionEnabled,
+                    onToggle = onSessionToggle
+                )
+
+                // 每日总时长开关
+                ToggleRow(
+                    label = "每日总时长限制",
+                    subtitle = "每天总使用时间",
+                    isEnabled = dailyEnabled,
+                    onToggle = onDailyToggle
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 保存按钮 - 红色圆角
+                var saveScale by remember { mutableStateOf(1f) }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .scale(saveScale)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(12.dp),
+                            spotColor = Color(0xFFE63946).copy(alpha = 0.5f)
+                        )
+                        .clickable {
+                            saveScale = 0.95f
+                            onSave()
+                        }
+                        .background(
+                            color = Color(0xFFE63946),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "保存",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                LaunchedEffect(saveScale) {
+                    if (saveScale != 1f) {
+                        delay(100)
+                        saveScale = 1f
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 开关行组件 - 用于对话框中
+ */
+@Composable
+private fun ToggleRow(
+    label: String,
+    subtitle: String,
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF333333)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 13.sp,
+                color = Color(0xFF999999)
+            )
+        }
+
+        // 开关组件 - 简化版
+        ToggleSwitchSimple(
+            isEnabled = isEnabled,
+            onToggle = onToggle
+        )
+    }
+}
+
+/**
+ * 简化的开关组件 - 参考截图样式
+ *
+ * 尺寸：52x28dp
+ * 开启：绿色 (#4CAF50)
+ * 关闭：灰色 (#BDBDBD)
+ */
+@Composable
+private fun ToggleSwitchSimple(
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    var switchScale by remember { mutableStateOf(1f) }
+
+    Box(
+        modifier = Modifier
+            .scale(switchScale)
+            .width(52.dp)
+            .height(28.dp)
+            .shadow(
+                elevation = 2.dp,
+                shape = RoundedCornerShape(14.dp),
+                spotColor = if (isEnabled) {
+                    Color(0xFF4CAF50).copy(alpha = 0.4f)
+                } else {
+                    Color.Gray.copy(alpha = 0.2f)
+                }
+            )
+            .clickable {
+                switchScale = 0.92f
+                onToggle(!isEnabled)
+            }
+            .background(
+                color = if (isEnabled) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .drawBehind {
+                // 圆形指示器
+                val circleSize = 22.dp.toPx()
+                val offset = if (isEnabled) {
+                    size.width - circleSize - 3.dp.toPx()
+                } else {
+                    3.dp.toPx()
+                }
+                drawCircle(
+                    color = Color.White,
+                    radius = circleSize / 2,
+                    center = androidx.compose.ui.geometry.Offset(
+                        offset + circleSize / 2,
+                        size.height / 2
+                    )
+                )
+            }
+    )
+
+    LaunchedEffect(switchScale) {
+        if (switchScale != 1f) {
+            delay(100)
+            switchScale = 1f
         }
     }
 }
