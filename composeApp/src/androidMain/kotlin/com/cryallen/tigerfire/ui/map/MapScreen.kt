@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cryallen.tigerfire.R
+import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.domain.model.SceneStatus
 import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.presentation.map.MapEffect
@@ -97,6 +98,8 @@ fun MapScreen(
     val selectedScene by viewModel.selectedScene.collectAsState()
     val animationTrigger by viewModel.animationTrigger.collectAsState()
     val scenePositions by viewModel.scenePositions.collectAsState()
+    val context = LocalContext.current
+    val audioManager = remember { context.getAudioManager() }
 
     // ==================== Avatar 角色位置状态 ====================
     // 是否正在跳跃动画中
@@ -130,9 +133,17 @@ fun MapScreen(
                 is MapEffect.NavigateToScene -> { /* 已在本地处理，忽略 */ }
                 is MapEffect.NavigateToCollection -> onNavigateToCollection()
                 is MapEffect.NavigateToParent -> onNavigateToParent()
-                is MapEffect.PlayLockedHint, is MapEffect.PlaySceneSound,
+                is MapEffect.PlayLockedHint -> {
+                    // 播放锁定提示音效
+                    audioManager.playHintSound()
+                }
+                is MapEffect.PlaySceneSound -> {
+                    // 播放场景点击音效（差异化）
+                    audioManager.playClickSound(effect.scene)
+                }
                 is MapEffect.PlaySuccessSound -> {
-                    // TODO: 在 Task 4.9/4.10 中集成音效播放
+                    // 播放成功音效
+                    audioManager.playSuccessSound()
                 }
             }
         }
@@ -973,7 +984,7 @@ private fun EnhancedSceneIcon(
 }
 
 /**
- * 家长模式验证对话框
+ * 家长模式验证对话框 - 现代化 Material3 设计
  *
  * @param question 数学问题
  * @param onSubmitAnswer 提交答案回调
@@ -985,59 +996,268 @@ private fun ParentVerificationDialog(
     onSubmitAnswer: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    // TODO: 使用 Material3 Dialog 实现验证对话框
-    // 这里先用简单的 Box 占位
+    // 弹窗缩放和淡入动画
+    var dialogScale by remember { mutableStateOf(0.7f) }
+    var dialogAlpha by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        // 入场动画：同时进行缩放和淡入
+        dialogScale = 1f
+        dialogAlpha = 1f
+    }
+
+    // 数字选项按钮（2-10，覆盖所有可能的答案）
+    val numberOptions = (2..10).toList()
+
+    // 小火图标呼吸动画
+    val infiniteTransition = rememberInfiniteTransition(label = "verification_dialog_animation")
+    val iconScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "icon_breath"
+    )
+
+    // 背景遮罩（带淡入动画）
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f)),
+            .alpha(dialogAlpha)
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            ),
         contentAlignment = Alignment.Center
     ) {
+        // 弹窗内容
         Box(
             modifier = Modifier
-                .background(Color.White, shape = MaterialTheme.shapes.large)
-                .padding(24.dp)
+                .scale(dialogScale)
+                .padding(32.dp)
+                .shadow(
+                    elevation = 24.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    spotColor = Color(0xFF457B9D).copy(alpha = 0.4f),
+                    ambientColor = Color(0xFFFFD700).copy(alpha = 0.3f)
+                )
+                .background(
+                    color = Color(0xFFFFF8DC), // 象牙色背景
+                    shape = RoundedCornerShape(28.dp)
+                )
+                .drawBehind {
+                    // 渐变边框（蓝色到金色）
+                    val strokeWidth = 4.dp.toPx()
+                    drawRoundRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF457B9D), // 蓝色
+                                Color(0xFFFFD700), // 金色
+                                Color(0xFF457B9D)  // 蓝色
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.width, size.height)
+                        ),
+                        style = Stroke(width = strokeWidth),
+                        cornerRadius = CornerRadius(28.dp.value, 28.dp.value)
+                    )
+                }
+                .padding(horizontal = 28.dp, vertical = 24.dp)
         ) {
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 小火图标（带呼吸动画）
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .scale(iconScale)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0xFFFFD700).copy(alpha = 0.5f)
+                        )
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    Color(0xFFFFF8DC)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🐯",
+                        fontSize = 40.sp
+                    )
+                }
+
+                // 标题
                 Text(
                     text = "家长验证",
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF457B9D)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = question,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(24.dp))
 
-                // 简单的答案输入（占位符）
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // TODO: 添加数字输入按钮
-                    (1..5).forEach { num ->
-                        Text(
-                            text = "$num",
-                            fontSize = 24.sp,
-                            modifier = Modifier
-                                .clickable { onSubmitAnswer(num) }
-                                .padding(8.dp)
+                // 提示文字
+                Text(
+                    text = "请回答数学问题",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+
+                // 数学问题
+                Box(
+                    modifier = Modifier
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            spotColor = Color(0xFF457B9D).copy(alpha = 0.3f)
                         )
-                    }
+                        .background(
+                            color = Color.White,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = question,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE63946)
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
+                // 数字选项网格（3列）
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 第一行：2, 3, 4
+                    NumberButtonRow(
+                        numbers = listOf(2, 3, 4),
+                        onSubmitAnswer = onSubmitAnswer
+                    )
+                    // 第二行：5, 6, 7
+                    NumberButtonRow(
+                        numbers = listOf(5, 6, 7),
+                        onSubmitAnswer = onSubmitAnswer
+                    )
+                    // 第三行：8, 9, 10
+                    NumberButtonRow(
+                        numbers = listOf(8, 9, 10),
+                        onSubmitAnswer = onSubmitAnswer
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 取消按钮
+                var cancelScale by remember { mutableStateOf(1f) }
                 Text(
                     text = "取消",
                     fontSize = 16.sp,
-                    color = Color.Blue,
-                    modifier = Modifier.clickable(onClick = onDismiss)
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF6C757D),
+                    modifier = Modifier
+                        .scale(cancelScale)
+                        .clickable {
+                            cancelScale = 0.95f
+                            onDismiss()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 )
+
+                LaunchedEffect(cancelScale) {
+                    if (cancelScale != 1f) {
+                        delay(100)
+                        cancelScale = 1f
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 数字按钮行 - 每行3个数字
+ *
+ * @param numbers 数字列表
+ * @param onSubmitAnswer 提交答案回调
+ */
+@Composable
+private fun NumberButtonRow(
+    numbers: List<Int>,
+    onSubmitAnswer: (Int) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        numbers.forEach { num ->
+            var buttonScale by remember { mutableStateOf(1f) }
+
+            // 数字按钮颜色（使用渐变）
+            val buttonGradient = Brush.horizontalGradient(
+                colors = listOf(
+                    Color(0xFF457B9D),
+                    Color(0xFFA8DADC)
+                )
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .scale(buttonScale)
+                    .shadow(
+                        elevation = 6.dp,
+                        shape = RoundedCornerShape(12.dp),
+                        spotColor = Color(0xFF457B9D).copy(alpha = 0.4f)
+                    )
+                    .clickable {
+                        buttonScale = 0.9f
+                        onSubmitAnswer(num)
+                    }
+                    .background(
+                        brush = buttonGradient,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .drawBehind {
+                        // 按钮高光效果
+                        drawRoundRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.3f),
+                                    Color.Transparent
+                                )
+                            ),
+                            cornerRadius = CornerRadius(12.dp.value, 12.dp.value)
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "$num",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            LaunchedEffect(buttonScale) {
+                if (buttonScale != 1f) {
+                    delay(100)
+                    buttonScale = 1f
+                }
             }
         }
     }
