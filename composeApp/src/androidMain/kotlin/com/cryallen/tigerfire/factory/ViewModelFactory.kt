@@ -162,4 +162,26 @@ class ViewModelFactory(
         // 关闭数据库连接
         sqlDriver.close()
     }
+
+    /**
+     * 获取 UseCase 工厂
+     *
+     * 提供对 UseCase 层的访问，用于封装业务逻辑
+     *
+     * @return UseCaseFactory UseCase 工厂实例
+     */
+    fun getUseCaseFactory(): UseCaseFactory {
+        return UseCaseFactory(progressRepository)
+    }
+
+    /**
+     * 获取 UseCases 容器
+     *
+     * 提供对所有 UseCase 的便捷访问
+     *
+     * @return UseCases UseCase 容器实例
+     */
+    fun getUseCases(): UseCases {
+        return UseCases.fromFactory(getUseCaseFactory())
+    }
 }
