@@ -56,6 +56,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.drawscope.Stroke
 import com.cryallen.tigerfire.component.VideoPlayer
 import com.cryallen.tigerfire.component.getAudioManager
+import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.presentation.school.SchoolEffect
 import com.cryallen.tigerfire.presentation.school.SchoolEvent
 import com.cryallen.tigerfire.presentation.school.SchoolViewModel
@@ -150,6 +151,7 @@ fun SchoolScreen(
                 is SchoolEffect.NavigateToMap -> {
                     // 导航回主地图
                     audioManager.stopAlertSound()
+                    audioManager.playClickSound(SceneType.SCHOOL)
                     onNavigateBack()
                 }
                 is SchoolEffect.PlaySlowDownVoice -> {

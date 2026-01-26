@@ -1,6 +1,7 @@
 package com.cryallen.tigerfire.ui.welcome
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -283,7 +284,7 @@ fun WelcomeScreen(
                         targetValue = 1f,
                         animationSpec = infiniteRepeatable(
                             animation = tween(1000, easing = FastOutSlowInEasing),
-                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                            repeatMode = RepeatMode.Reverse
                         ),
                         label = "pulse_alpha"
                     )
@@ -299,7 +300,7 @@ fun WelcomeScreen(
                 state.shouldNavigate -> {
                     // 导航中提示
                     Text(
-                        text = "🚀 正在进入地图...",
+                        text = "🚀 正在进入冒险场景中...",
                         fontSize = 14.sp,
                         color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center

@@ -218,6 +218,7 @@ class FireStationViewModel(
         // 停止空闲检测
         idleTimer.stopIdleDetection()
 
+        sendEffect(FireStationEffect.PlayClickSound)
         sendEffect(FireStationEffect.NavigateToMap)
     }
 

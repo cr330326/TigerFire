@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.cryallen.tigerfire.component.VideoPlayer
 import com.cryallen.tigerfire.component.getAudioManager
+import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.presentation.firestation.FireStationDevice
 import com.cryallen.tigerfire.presentation.firestation.FireStationEffect
 import com.cryallen.tigerfire.presentation.firestation.FireStationEvent
@@ -71,7 +72,7 @@ fun FireStationScreen(
                     // 徽章动画在 showBadgeAnimation 状态中处理
                 }
                 is FireStationEffect.PlayClickSound -> {
-                    audioManager.playClickSound(com.cryallen.tigerfire.domain.model.SceneType.FIRE_STATION)
+                    audioManager.playClickSound(SceneType.FIRE_STATION)
                 }
                 is FireStationEffect.PlayBadgeSound -> {
                     audioManager.playBadgeSound()
@@ -138,7 +139,9 @@ fun FireStationScreen(
                 )
 
                 IconButton(
-                    onClick = onNavigateBack,
+                    onClick = {
+                        viewModel.onEvent(FireStationEvent.BackToMapClicked)
+                    },
                     modifier = Modifier
                         .scale(returnScale)
                         .size(56.dp)

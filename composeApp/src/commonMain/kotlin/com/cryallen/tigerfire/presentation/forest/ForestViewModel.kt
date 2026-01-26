@@ -320,6 +320,7 @@ class ForestViewModel(
         // 停止空闲检测
         idleTimer.stopIdleDetection()
 
+        sendEffect(ForestEffect.PlayClickSound)
         sendEffect(ForestEffect.NavigateToMap)
     }
 
