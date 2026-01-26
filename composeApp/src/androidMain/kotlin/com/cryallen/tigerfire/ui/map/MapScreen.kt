@@ -1515,6 +1515,13 @@ private fun AvatarCharacter(
     val animatedX = remember { Animatable(targetX) }
     val animatedY = remember { Animatable(targetY) }
 
+    // 跳跃缩放动画 - 配合跳跃动作
+    val jumpScale = remember { Animatable(1f) }
+    // 跳跃旋转动画 - 轻微摇摆
+    val jumpRotation = remember { Animatable(0f) }
+    // 弧形跳跃偏移 - 模拟真实的跳跃抛物线
+    val jumpOffset = remember { Animatable(0f) }
+
     // 当场景改变、触发器变化或 isJumping 变化时，执行平滑移动动画
     LaunchedEffect(selectedScene, animationTrigger, isJumping) {
         if (isJumping) {
@@ -1524,20 +1531,77 @@ private fun AvatarCharacter(
             val distanceSquared = deltaX * deltaX + deltaY * deltaY
 
             if (distanceSquared > 1f) {
-                // 距离较远，执行平滑动画
-                // 使用 spring 动画获得弹性回弹效果
-                val springSpec = spring<Float>(
-                    dampingRatio = 0.5f,  // 0.5 = 轻微弹性回弹
-                    stiffness = 200f      // 200 = 适中速度
+                // ==================== 优化后的动画参数 ====================
+                // 更快的 stiffness (450f) + 更弹性的 dampingRatio (0.4f)
+                val movementSpec = spring<Float>(
+                    dampingRatio = 0.4f,  // 0.4 = 适度的弹性回弹，更有趣
+                    stiffness = 450f      // 450 = 更快的速度
                 )
 
-                // 同时动画 X 和 Y 位置
-                animatedX.animateTo(targetX, animationSpec = springSpec)
-                animatedY.animateTo(targetY, animationSpec = springSpec)
+                // 快速弹性动画用于缩放和旋转
+                val bounceSpec = spring<Float>(
+                    dampingRatio = 0.35f,  // 更有弹性的缩放
+                    stiffness = 500f       // 快速响应
+                )
+
+                // ==================== 并行执行所有动画 ====================
+                // 1. 主要位置移动动画
+                animatedX.animateTo(targetX, animationSpec = movementSpec)
+                animatedY.animateTo(targetY, animationSpec = movementSpec)
+
+                // 2. 跳跃弧线效果 - 模拟抛物线
+                jumpOffset.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = 0.3f,
+                        stiffness = 600f
+                    )
+                )
+
+                // 3. 缩放动画 - 跳跃时变大
+                jumpScale.animateTo(
+                    targetValue = 1.15f,
+                    animationSpec = bounceSpec
+                )
+
+                // 4. 旋转动画 - 轻微摇摆 ±5°
+                jumpRotation.animateTo(
+                    targetValue = 5f,
+                    animationSpec = spring(
+                        dampingRatio = 0.5f,
+                        stiffness = 400f
+                    )
+                )
+
+                // 5. 落地恢复动画
+                jumpScale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = 0.4f,
+                        stiffness = 500f
+                    )
+                )
+                jumpRotation.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(
+                        dampingRatio = 0.5f,
+                        stiffness = 400f
+                    )
+                )
+                jumpOffset.snapTo(0f)
             } else {
                 // 距离很近（已经在目标位置），直接 snap 到目标位置
                 animatedX.snapTo(targetX)
                 animatedY.snapTo(targetY)
+                // 仍然执行一个小的跳跃动画，保持趣味性
+                jumpScale.animateTo(
+                    targetValue = 1.12f,
+                    animationSpec = spring<Float>(
+                        dampingRatio = 0.35f,
+                        stiffness = 500f
+                    )
+                )
+                jumpScale.animateTo(1f, animationSpec = spring(0.4f, 400f))
             }
 
             // 动画完成后通知父组件（无论是否执行了动画）
@@ -1546,23 +1610,45 @@ private fun AvatarCharacter(
         // 如果 isJumping 为 false，Avatar 静止在当前位置（不执行任何动画）
     }
 
+    // 计算跳跃弧线偏移量 - 使用正弦波模拟抛物线效果
+    val jumpHeight = with(density) { (-35).dp.toPx() * jumpOffset.value }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .offset(
                 x = with(density) { animatedX.value.toDp() },
-                y = with(density) { animatedY.value.toDp() }
+                y = with(density) { (animatedY.value + jumpHeight).toDp() }
             )
     ) {
-        // ==================== 圆形 Avatar 图片 ====================
+        // ==================== 动态阴影效果 ====================
+        // 阴影大小随跳跃高度变化（跳得越高阴影越小越淡）
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .offset(y = with(density) { (-jumpHeight * 0.3f).toDp() })
+                .drawBehind {
+                    val shadowAlpha = 0.25f * (1f - jumpOffset.value * 0.5f)
+                    val shadowScale = 1f - jumpOffset.value * 0.3f
+                    drawCircle(
+                        color = Color(0xFF8B4513).copy(alpha = shadowAlpha),
+                        radius = (size.minDimension / 2 - 4.dp.toPx()) * shadowScale,
+                        style = Stroke(width = 6.dp.toPx() * shadowScale)
+                    )
+                }
+        )
+
+        // ==================== 圆形 Avatar 图片（带动画效果）====================
         Box(
             modifier = Modifier
                 .size(96.dp) // 96x96 分辨率
+                .scale(jumpScale.value) // 应用缩放动画
+                .rotate(jumpRotation.value) // 应用旋转动画
                 .clip(CircleShape) // 圆形裁剪
                 .shadow(
-                    elevation = 12.dp,
+                    elevation = with(density) { (12.dp.toPx() + jumpOffset.value * 8.dp.toPx()).toDp() }, // 跳跃时阴影升高
                     shape = CircleShape,
-                    spotColor = Color(0xFFFFD700).copy(alpha = 0.4f)
+                    spotColor = Color(0xFFFFD700).copy(alpha = 0.4f + jumpOffset.value * 0.2f)
                 )
                 .background(
                     brush = Brush.radialGradient(
@@ -1584,20 +1670,48 @@ private fun AvatarCharacter(
                     .clip(CircleShape) // 确保图片也是圆形的
             )
 
-            // 装饰性光晕效果
+            // 装饰性光晕效果 - 动态光环
             Box(
                 modifier = Modifier
                     .size(96.dp)
                     .clip(CircleShape)
                     .drawBehind {
-                        // 绘制金色光环
+                        // 绘制金色光环，跳跃时增强
                         drawCircle(
-                            color = Color(0xFFFFD700).copy(alpha = 0.3f),
+                            color = Color(0xFFFFD700).copy(alpha = 0.3f + jumpOffset.value * 0.3f),
                             radius = size.minDimension / 2 - 2.dp.toPx(),
-                            style = Stroke(width = 3.dp.toPx())
+                            style = Stroke(width = (3.dp.toPx() + jumpOffset.value * 2.dp.toPx()))
                         )
                     }
             )
+        }
+
+        // ==================== 跳跃时的粒子效果 ====================
+        if (jumpOffset.value > 0.3f) {
+            // 绘制简单的星星粒子装饰
+            val particleAlpha = (jumpOffset.value - 0.3f) * 0.5f
+            // 使用 dp 值定义粒子偏移位置
+            listOf(
+                -20.dp to -25.dp,
+                20.dp to -30.dp,
+                0.dp to -35.dp,
+                -15.dp to -15.dp,
+                15.dp to -20.dp
+            ).forEach { (xDp, yDp) ->
+                Box(
+                    modifier = Modifier
+                        .offset(x = xDp, y = yDp)
+                        .size(8.dp)
+                        .alpha(particleAlpha)
+                        .drawBehind {
+                            // 绘制小星星
+                            drawCircle(
+                                color = Color(0xFFFFD700).copy(alpha = particleAlpha),
+                                radius = size.minDimension / 2
+                            )
+                        }
+                )
+            }
         }
     }
 }

@@ -80,9 +80,9 @@ class WelcomeViewModel(
             shouldNavigate = true
         )
 
-        // 延迟1s后自动导航到主地图
+        // 延迟2s后自动导航到主地图
         viewModelScope.launch {
-            delay(1000)
+            delay(2000)
             sendEffect(WelcomeEffect.NavigateToMap)
         }
     }
