@@ -1,6 +1,7 @@
 package com.cryallen.tigerfire.presentation.welcome
 
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,13 +40,13 @@ class WelcomeViewModel(
             is WelcomeEvent.TruckAnimationCompleted -> handleTruckAnimationCompleted()
             is WelcomeEvent.WaveAnimationCompleted -> handleWaveAnimationCompleted()
             is WelcomeEvent.VoicePlaybackCompleted -> handleVoicePlaybackCompleted()
-            is WelcomeEvent.ScreenClicked -> handleScreenClicked()
         }
     }
 
     /**
      * 处理卡车入场动画完成
-     * 触发挥手动画和播放欢迎语音
+     *
+     * 触发小火挥手动画和播放欢迎语音
      */
     private fun handleTruckAnimationCompleted() {
         _state.value = _state.value.copy(
@@ -55,7 +56,7 @@ class WelcomeViewModel(
         )
         // 触发挥手动画
         sendEffect(WelcomeEffect.PlayWaveAnimation)
-        // 播放欢迎语音
+        // 播放欢迎语音："HI！今天和我一起救火吧！"
         sendEffect(WelcomeEffect.PlayVoice("audio/voices/welcome_greeting.mp3"))
     }
 
@@ -70,25 +71,20 @@ class WelcomeViewModel(
 
     /**
      * 处理语音播放完成
-     * 启用屏幕点击响应
+     *
+     * 延迟100ms后自动导航到主地图（无需用户交互）
      */
     private fun handleVoicePlaybackCompleted() {
         _state.value = _state.value.copy(
             isVoicePlaying = false,
-            isClickEnabled = true
+            shouldNavigate = true
         )
-    }
 
-    /**
-     * 处理屏幕点击
-     * 仅当点击启用后才导航
-     */
-    private fun handleScreenClicked() {
-        // 仅当点击启用后才导航到主地图
-        if (_state.value.isClickEnabled) {
+        // 延迟100ms后自动导航到主地图
+        viewModelScope.launch {
+            delay(100)
             sendEffect(WelcomeEffect.NavigateToMap)
         }
-        // 如果点击未启用，忽略点击（静默失败）
     }
 
     // ==================== 辅助方法 ====================

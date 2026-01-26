@@ -521,20 +521,18 @@
   - `isTruckAnimationCompleted: Boolean`（卡车入场动画是否完成）
   - `showWaveAnimation: Boolean`（是否显示挥手动画）
   - `isVoicePlaying: Boolean`（语音是否正在播放）
-  - `isClickEnabled: Boolean`（是否启用点击响应）
+  - `shouldNavigate: Boolean`（是否应该导航）
 - 定义 `WelcomeEvent`：
   - `TruckAnimationCompleted`（卡车入场动画完成）
   - `WaveAnimationCompleted`（挥手动画完成）
   - `VoicePlaybackCompleted`（语音播放完成）
-  - `ScreenClicked`（用户点击屏幕）
 - 定义 `WelcomeEffect`：
   - `PlayWaveAnimation`（播放挥手动画）
   - `PlayVoice(audioPath: String)`（播放欢迎语音）
-  - `NavigateToMap`（导航至主地图）
+  - `NavigateToMap`（延迟100ms后导航至主地图）
 - 实现 ViewModel：
   - 卡车动画完成 → 触发挥手动画 + 语音播放
-  - 语音播放完成 → 启用点击响应
-  - 处理屏幕点击 → 发送导航事件
+  - 语音播放完成 → 延迟100ms自动发送导航事件（无需用户交互）
 - 验证：ViewModel 可正确管理启动页流程状态
 
 **新增文件**：
@@ -545,8 +543,9 @@
 
 **说明**：
 - 语音资源路径：`voice_welcome_greeting.mp3`
-- 卡车动画：`anim_truck_enter.json`（3-5 秒）
-- 挥手动画：`anim_xiaohuo_wave.json`（2-3 秒）
+- 卡车动画：`anim_truck_enter.json`（2-3 秒）
+- 挥手动画：`anim_xiaohuo_wave.json`（3 秒）
+- 自动导航延迟：100ms
 
 ---
 
@@ -841,21 +840,20 @@
   - 使用 `WindowInsetsControllerCompat` 隐藏状态栏和导航栏
   - 设置系统 UI 标志：`SYSTEM_UI_FLAG_FULLSCREEN` + `SYSTEM_UI_FLAG_HIDE_NAVIGATION`
 - **动画播放流程**：
-  1. 页面加载自动播放卡车入场动画（`anim_truck_enter.json`）
-  2. 卡车动画完成 → 播放挥手动画（`anim_xiaohuo_wave.json`）
+  1. 页面加载自动播放卡车入场动画（`anim_truck_enter.json`，2-3秒）
+  2. 卡车动画完成 → 播放挥手动画（`anim_xiaohuo_wave.json`，3秒）
   3. 同时播放欢迎语音（`voice_welcome_greeting.mp3`）
   4. 播放鸣笛音效（`sfx_truck_horn.mp3`）和背景音乐（`bgm_welcome.mp3`）
-- **交互处理**：
-  - 使用 `Modifier.clickable(enabled = state.isClickEnabled)` 实现全屏点击
-  - 仅当语音播放完成后才启用点击响应
-  - 点击发送 `WelcomeEvent.ScreenClicked` 事件
+- **自动导航**：
+  - 语音播放完成后自动触发导航
+  - 延迟100ms后发送导航事件（无需用户交互）
 - **Effect 处理**：
   - 订阅 `viewModel.effect` 处理导航（`NavigateToMap`）
   - 处理播放语音 Effect（`PlayVoice`）
 - **降级策略**：
-  - Lottie 加载失败（>3 秒）→ 显示静态替代图 + 自动进入
+  - Lottie 加载失败（>3 秒）→ 显示静态替代图 + 延迟5秒自动进入
   - 语音加载失败 → 静默跳过，不阻塞流程
-- 验证：启动页动画可正常播放，音效正常，语音播放完毕后点击可跳转
+- 验证：启动页动画可正常播放，音效正常，语音播放完毕后自动跳转
 
 **新增文件**：
 - `androidApp/src/main/java/com/tigertruck/ui/welcome/WelcomeScreen.kt`
@@ -1161,22 +1159,21 @@
   - 使用 `.statusBar(hidden: true)` 隐藏状态栏
   - 设置 `.edgesIgnoringSafeArea(.all)` 全屏显示
 - **动画播放流程**：
-  1. 页面加载（`.onAppear`）自动播放卡车入场动画（`anim_truck_enter.json`）
-  2. 卡车动画完成 → 播放挥手动画（`anim_xiaohuo_wave.json`）
+  1. 页面加载（`.onAppear`）自动播放卡车入场动画（`anim_truck_enter.json`，2-3秒）
+  2. 卡车动画完成 → 播放挥手动画（`anim_xiaohuo_wave.json`，3秒）
   3. 同时播放欢迎语音（`voice_welcome_greeting.mp3`）
   4. 播放鸣笛音效（`sfx_truck_horn.mp3`）和背景音乐（`bgm_welcome.mp3`）
-- **交互处理**：
-  - 使用 `.contentShape(Rectangle())` + `.onTapGesture` 实现全屏点击
-  - 仅当 `state.isClickEnabled` 为 true 时响应点击
-  - 点击发送 `WelcomeEvent.ScreenClicked` 事件
+- **自动导航**：
+  - 语音播放完成后自动触发导航
+  - 延迟100ms后发送导航事件（无需用户交互）
 - **ViewModel 桥接**：
   - 创建 `WelcomeViewModelWrapper` 桥接 Shared ViewModel
   - 订阅 Effect 处理导航（`NavigateToMap`）
   - 处理播放语音 Effect（`PlayVoice`）
 - **降级策略**：
-  - Lottie 加载失败（>3 秒）→ 显示静态替代图 + 自动进入
+  - Lottie 加载失败（>3 秒）→ 显示静态替代图 + 延迟5秒自动进入
   - 语音加载失败 → 静默跳过，不阻塞流程
-- 验证：启动页动画可正常播放，音效正常，语音播放完毕后点击可跳转
+- 验证：启动页动画可正常播放，音效正常，语音播放完毕后自动跳转
 
 **新增文件**：
 - `iosApp/TigerFire/UI/WelcomeView/WelcomeView.swift`
@@ -2784,9 +2781,8 @@ class EndToEndStabilityTest {
     }
 
     private fun runCompletePlaythrough(round: Int) {
-        // 1. 启动页 → 主地图
-        waitAndClick(R.id.welcome_container)
-        waitForScreen("MapScreen")
+        // 1. 启动页 → 主地图（自动导航，无需点击）
+        waitForScreen("MapScreen", timeoutMs = 8000) // 等待动画和自动导航完成
 
         // 2. 主地图 → 消防站
         clickScene("FIRE_STATION")

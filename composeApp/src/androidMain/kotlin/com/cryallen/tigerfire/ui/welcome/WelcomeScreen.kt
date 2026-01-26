@@ -7,16 +7,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -26,9 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,19 +46,22 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import com.cryallen.tigerfire.R
-import org.jetbrains.compose.resources.imageResource
 
 /**
- * 欢迎页/启动页 Screen（最终优化版 - 带背景图）
+ * 欢迎页/启动页 Screen（自动导航版）
  *
  * 功能说明：
- * 1. 显示背景图
- * 2. 播放卡车入场 Lottie 动画（2 秒）
- * 3. 播放小火挥手 Lottie 动画（3 秒）
- * 4. 播放欢迎语音
- * 5. 语音播放完毕后，点击屏幕进入主地图
+ * 1. 显示背景图（淡入动画）
+ * 2. 自动播放卡车入场 Lottie 动画（2-3秒）+ 鸣笛音效
+ * 3. 自动播放小火挥手 Lottie 动画（3秒）
+ * 4. 自动播放欢迎语音："HI！今天和我一起救火吧！"
+ * 5. 语音播放完毕后延迟100ms自动导航到主地图（无需用户交互）
+ *
+ * 设计理念：
+ * - 零操作启动 - 完全自动化流程
+ * - 沉浸式体验 - 连续动画营造"出发"代入感
+ * - 节奏紧凑 - 总时长5-6秒快速进入内容
  *
  * @param viewModel WelcomeViewModel
  * @param onNavigateToMap 导航到主地图回调
@@ -74,21 +72,20 @@ fun WelcomeScreen(
     onNavigateToMap: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val audioManager = remember { context.getAudioManager() }
 
     // 背景图淡入动画
-    var backgroundAlpha by remember { mutableFloatStateOf(0f) }
+    var backgroundAlpha by remember { mutableStateOf(0f) }
     val backgroundAlphaAnimated by animateFloatAsState(
         targetValue = backgroundAlpha,
         animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
         label = "background_fade"
     )
 
-    // 卡车入场动画（从左侧滑入 + 淡入）
-    var truckAlpha by remember { mutableFloatStateOf(0f) }
-    var truckOffsetX by remember { mutableFloatStateOf(-1f) }
+    // 卡车入场动画（从底部滑入 + 淡入）
+    var truckAlpha by remember { mutableStateOf(0f) }
+    var truckOffsetY by remember { mutableStateOf(1f) }
     val truckAlphaAnimated by animateFloatAsState(
         targetValue = truckAlpha,
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
@@ -96,8 +93,8 @@ fun WelcomeScreen(
     )
 
     // 小火挥手动画（缩放 + 淡入）
-    var waveAlpha by remember { mutableFloatStateOf(0f) }
-    var waveScale by remember { mutableFloatStateOf(0.5f) }
+    var waveAlpha by remember { mutableStateOf(0f) }
+    var waveScale by remember { mutableStateOf(0.5f) }
     val waveAlphaAnimated by animateFloatAsState(
         targetValue = waveAlpha,
         animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
@@ -110,7 +107,7 @@ fun WelcomeScreen(
     )
 
     // 欢迎文字淡入动画
-    var textAlpha by remember { mutableFloatStateOf(0f) }
+    var textAlpha by remember { mutableStateOf(0f) }
     val textAlphaAnimated by animateFloatAsState(
         targetValue = textAlpha,
         animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
@@ -132,7 +129,7 @@ fun WelcomeScreen(
         iterations = 1
     )
 
-    // 小火挥手动画进度 - 始终播放
+    // 小火挥手动画进度
     val waveProgress by animateLottieCompositionAsState(
         composition = waveComposition,
         isPlaying = true,
@@ -145,9 +142,9 @@ fun WelcomeScreen(
         backgroundAlpha = 1f
         delay(200)
 
-        // 2. 卡车入场动画开始（淡入 + 滑入）
+        // 2. 卡车入场动画开始（从底部滑入 + 淡入）
         truckAlpha = 1f
-        truckOffsetX = 0f
+        truckOffsetY = 0f
     }
 
     // 卡车动画完成后触发事件
@@ -184,6 +181,7 @@ fun WelcomeScreen(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is WelcomeEffect.NavigateToMap -> {
+                    // 延迟100ms后自动导航（已在ViewModel中处理）
                     onNavigateToMap()
                 }
                 is WelcomeEffect.PlayWaveAnimation -> {
@@ -193,31 +191,22 @@ fun WelcomeScreen(
                     // 播放欢迎语音
                     audioManager.playVoice(effect.audioPath)
 
-                    // 模拟语音播放时长
+                    // 模拟语音播放时长（3秒）
                     delay(3000)
 
-                    // 语音播放完成，启用点击
+                    // 语音播放完成，触发自动导航
                     viewModel.onEvent(WelcomeEvent.VoicePlaybackCompleted)
                 }
             }
         }
     }
 
-    // 无限呼吸动画（用于点击提示）
+    // 无限呼吸动画（用于状态提示）
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
 
-    // 全屏可点击（仅当 isClickEnabled 为 true 时才响应）
+    // 全屏容器（无点击交互，完全自动化）
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                coroutineScope.launch {
-                    viewModel.onEvent(WelcomeEvent.ScreenClicked)
-                }
-            }
+        modifier = Modifier.fillMaxSize()
     ) {
         // 背景层（使用 drawable 资源，裁剪填充屏幕）
         Image(
@@ -239,11 +228,12 @@ fun WelcomeScreen(
         ) {
             Spacer(modifier = Modifier.height(30.dp))
 
-            // 卡车入场 Lottie 动画（带淡入效果）
+            // 卡车入场 Lottie 动画（从底部滑入 + 淡入）
             Box(
                 modifier = Modifier
                     .size(280.dp, 300.dp)
                     .alpha(truckAlphaAnimated)
+                    .offset(y = (truckOffsetY * 100).dp)
             ) {
                 LottieAnimation(
                     composition = truckComposition,
@@ -272,7 +262,7 @@ fun WelcomeScreen(
 
             // 欢迎文字（淡入效果）
             Text(
-                text = "好好！今天和我一起救火吧！",
+                text = "HI！今天和我一起救火吧！",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
@@ -284,30 +274,8 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // 底部状态提示
             when {
-                state.isClickEnabled -> {
-                    // 点击提示（呼吸动画）
-                    val pulseScale = infiniteTransition.animateFloat(
-                        initialValue = 1f,
-                        targetValue = 1.15f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(800, easing = FastOutSlowInEasing),
-                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-                        ),
-                        label = "pulse"
-                    )
-
-                    Text(
-                        text = "👆 点击屏幕开始冒险！",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier
-                            .scale(pulseScale.value),
-                        textAlign = TextAlign.Center
-                    )
-                }
-
                 state.isVoicePlaying -> {
                     // 语音播放中提示（呼吸效果）
                     val pulseAlpha = infiniteTransition.animateFloat(
@@ -324,6 +292,16 @@ fun WelcomeScreen(
                         text = "🔊 语音播放中...",
                         fontSize = 14.sp,
                         color = Color.White.copy(alpha = pulseAlpha.value),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                state.shouldNavigate -> {
+                    // 导航中提示
+                    Text(
+                        text = "🚀 正在进入地图...",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -349,6 +327,16 @@ fun WelcomeScreen(
                             textAlign = TextAlign.Center
                         )
                     }
+                }
+
+                else -> {
+                    // 准备就绪提示（短暂显示）
+                    Text(
+                        text = "✨ 准备就绪",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 

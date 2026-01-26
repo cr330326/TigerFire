@@ -22,7 +22,7 @@
 
 本技术方案涵盖以下核心功能模块的完整实现：
 
-1. **启动页场景**：Lottie 动画播放 + 全屏点击进入
+1. **启动页场景**：Lottie 动画自动播放 + 自动导航（无用户交互）
 2. **主地图场景**：场景图标状态管理、解锁逻辑、转场动画
 3. **消防站场景**：4 个教学设备点击交互 + MP4 视频播放 + 徽章获得
 4. **学校场景**：MP4 剧情动画播放 + 场景解锁 + 徽章获得
@@ -154,7 +154,7 @@ TigerFire/
 
 | Feature 模块 | 职责 | 输入 | 输出 |
 |-------------|------|------|------|
-| **welcome** | 启动页动画播放、全屏点击检测 | 无 | 导航至主地图 |
+| **welcome** | 启动页动画自动播放、语音播报完成自动导航 | 无 | 导航至主地图 |
 | **map** | 场景图标状态管理、解锁判定、转场触发 | GameProgress | 导航至具体场景 |
 | **firestation** | 设备点击状态、视频播放控制、徽章颁发 | GameProgress | 更新 Progress + Badge |
 | **school** | 剧情动画播放、场景解锁触发 | GameProgress | 解锁森林 + Badge |
@@ -300,15 +300,14 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 
 **步骤**：
 1. App 启动 → 显示启动页界面（全屏布局，无状态栏）
-2. 自动播放 Lottie 动画（`anim_truck_enter.json`，3-5 秒）
-   - 消防车从屏幕底部驶入
-   - 同时播放鸣笛音效（`sfx_truck_horn.mp3`）
-   - 轻快活泼背景音乐（`bgm_welcome.mp3`）开始播放
-3. 动画结束 → 小火探头挥手（`anim_xiaohuo_wave.json`）
-4. 播放语音（`voice_welcome_greeting.mp3`）："HI！今天和我一起救火吧！"
-   - 正常语速，带停顿（适配 3-6 岁儿童理解）
-5. 语音播放完毕后，屏幕全域可点击
-6. 用户点击屏幕任意位置 → 导航至主地图
+2. 自动播放 Lottie 动画序列：
+   - **第一阶段**：消防车从底部驶入（`anim_truck_enter.json`，2-3 秒）
+     - 同时播放鸣笛音效（`sfx_truck_horn.mp3`）
+     - 轻快活泼背景音乐（`bgm_welcome.mp3`）开始播放
+   - **第二阶段**：小火探头挥手（`anim_xiaohuo_wave.json`，3 秒）
+     - 播放语音（`voice_welcome_greeting.mp3`）："HI！今天和我一起救火吧！"
+     - 正常语速，带停顿（适配 3-6 岁儿童理解）
+3. 语音播放完毕 → **延迟 100ms 自动导航至主地图**（无需用户点击）
 
 **首次使用处理**：
 - 首次启动时，自动初始化默认家长设置：
@@ -318,14 +317,13 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 
 **关键触发点**：
 - 卡车入场动画完成 → 触发挥手动画 + 语音播放
-- 语音播放完成 → 启用全屏点击响应
-- 屏幕任意位置点击 → 发送导航事件
+- 语音播放完成 → 延迟 100ms 自动发送导航事件（**无用户交互**）
 
-**主流启动页设计参考**：
-- **品牌展示 + 功能引导结合**：通过小火角色建立 IP 认知
-- **极简交互**：无按钮，全屏可点，降低 3-6 岁儿童操作门槛
-- **感官多维度反馈**：视觉（Lottie 动画）+ 听觉（音效 + 语音）+ 触觉（点击反馈）
-- **节奏控制**：总时长控制在 5-8 秒，避免儿童等待焦虑
+**设计理念**：
+- **零操作启动**：完全自动化流程，无需儿童任何交互
+- **沉浸式体验**：连续动画序列，营造"和消防员一起出发"的代入感
+- **感官多维度反馈**：视觉（Lottie 动画）+ 听觉（音效 + 语音）
+- **节奏控制**：总时长控制在 5-6 秒，快速进入游戏内容
 
 ### 4.1.1 资源缺失降级方案
 
@@ -333,20 +331,23 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 
 **降级实现**（参考主流做法）：
 
-1. **纯色背景 + Logo 方案**（最简化）：
+1. **纯色背景 + Logo 方案**（最简化，自动跳转）：
    ```kotlin
    // Android Compose 代码示例
    @Composable
    fun WelcomeScreen(viewModel: WelcomeViewModel) {
        val state by viewModel.state.collectAsState()
 
+       // LaunchedEffect 在进入组合时自动触发导航
+       LaunchedEffect(Unit) {
+           delay(5000) // 5秒后自动跳转
+           viewModel.onEvent(WelcomeEvent.NavigateToMap)
+       }
+
        Box(
            modifier = Modifier
                .fillMaxSize()
                .background(Color(0xFFE63946)) // 品牌红色背景
-               .clickable(enabled = state.isClickEnabled) {
-                   viewModel.onEvent(WelcomeEvent.ScreenClicked)
-               }
        ) {
            // 中心显示小火 Logo 或静态图
            Image(
@@ -354,22 +355,11 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
                contentDescription = null,
                modifier = Modifier.align(Alignment.Center)
            )
-
-           // 底部显示文字提示
-           if (state.isClickEnabled) {
-               Text(
-                   text = "点击屏幕开始游戏",
-                   color = Color.White,
-                   fontSize = 24.sp,
-                   modifier = Modifier.align(Alignment.BottomCenter)
-                       .padding(bottom = 80.dp)
-               )
-           }
        }
    }
    ```
 
-2. **渐变背景 + 简单动画方案**（无 Lottie）：
+2. **渐变背景 + 简单动画方案**（无 Lottie，自动跳转）：
    ```kotlin
    // 使用 Compose 内置动画替代 Lottie
    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -378,9 +368,15 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
        targetValue = 1.1f,
        animationSpec = infiniteRepeatable(
            animation = tween(1000, easing = FastOutSlowInEasing),
-          repeatMode = RepeatMode.Reverse
+           repeatMode = RepeatMode.Reverse
        ), label = "scale"
    )
+
+   // 自动导航逻辑
+   LaunchedEffect(Unit) {
+       delay(5000)
+       viewModel.onEvent(WelcomeEvent.NavigateToMap)
+   }
 
    // Logo 缩放动画模拟"呼吸"效果
    Image(

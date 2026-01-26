@@ -4,6 +4,11 @@ package com.cryallen.tigerfire.presentation.welcome
  * 欢迎页状态
  *
  * 表示启动页的 UI 状态
+ *
+ * 动画播放流程：
+ * 1. 卡车入场动画（2-3秒）
+ * 2. 小火挥手动画（3秒）+ 语音播报
+ * 3. 语音播放完毕后延迟100ms自动导航
  */
 data class WelcomeState(
     /**
@@ -22,7 +27,9 @@ data class WelcomeState(
     val isVoicePlaying: Boolean = false,
 
     /**
-     * 是否启用点击响应（语音播放完成后才启用）
+     * 是否应该导航到主地图
+     *
+     * 语音播放完毕后设置为 true，触发延迟100ms后自动导航
      */
-    val isClickEnabled: Boolean = false
+    val shouldNavigate: Boolean = false
 )
