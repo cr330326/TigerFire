@@ -68,7 +68,13 @@ data class ParentState(
     /**
      * 每日总时长限制开关状态
      */
-    val dailyTimeLimitEnabled: Boolean = false
+    val dailyTimeLimitEnabled: Boolean = false,
+
+    /**
+     * 待应用的每次使用时长（分钟）
+     * 用户选择的时间，验证通过后才会实际应用
+     */
+    val pendingSessionTimeLimit: Int? = null
 )
 
 /**
@@ -85,7 +91,6 @@ enum class ParentAction {
     /**
      * 重置游戏进度
      */
-
     RESET_PROGRESS,
 
     /**

@@ -118,6 +118,8 @@ class AndroidAudioManager(
                 loadSound(getSoundResourceName(SoundType.SUCCESS))
                 loadSound(getSoundResourceName(SoundType.HINT))
                 loadSound(getSoundResourceName(SoundType.BADGE))
+                loadSound(getSoundResourceName(SoundType.ALL_COMPLETED))
+                loadSound(getSoundResourceName(SoundType.ALERT))
             } catch (e: Exception) {
                 e.printStackTrace()
             }

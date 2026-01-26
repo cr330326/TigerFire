@@ -1354,7 +1354,8 @@ private fun ResetConfirmationDialog(
 }
 
 /**
- * 数学验证对话框 - 现代化数字按钮设计
+ * 数学验证对话框 - 现代化玻璃拟态设计（增强版）
+ * 参考：儿童友好的大触摸目标、明亮的颜色、即时反馈
  */
 @Composable
 private fun MathVerificationDialog(
@@ -1363,178 +1364,371 @@ private fun MathVerificationDialog(
     onSubmit: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    // 对话框动画
-    var dialogScale by remember { mutableStateOf(0.7f) }
+    // 对话框入场动画 - 更流畅的弹簧效果
+    var dialogScale by remember { mutableStateOf(0.3f) }
     var dialogAlpha by remember { mutableStateOf(0f) }
+    var dialogOffsetY by remember { mutableStateOf(100f) }
 
     LaunchedEffect(Unit) {
         dialogScale = 1f
         dialogAlpha = 1f
+        dialogOffsetY = 0f
     }
 
-    // 数字选项（2-18覆盖所有可能的答案）
-    val numberOptions = (2..18).toList()
-
-    // 背景遮罩
+    // 背景遮罩 - 使用径向渐变模糊效果
     Box(
         modifier = Modifier
             .fillMaxSize()
             .alpha(dialogAlpha)
-            .background(Color.Black.copy(alpha = 0.6f))
+            .background(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF159895).copy(alpha = 0.25f),
+                        Color(0xFF1A5F7A).copy(alpha = 0.5f),
+                        Color.Black.copy(alpha = 0.75f)
+                    )
+                )
+            )
             .clickable(onClick = onDismiss),
         contentAlignment = Alignment.Center
     ) {
-        // 对话框内容
+        // 对话框内容 - 增强版玻璃拟态
         Box(
             modifier = Modifier
+                .offset(y = dialogOffsetY.dp)
                 .scale(dialogScale)
-                .padding(32.dp)
+                .padding(20.dp)
+                .widthIn(max = 400.dp)
                 .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(28.dp),
-                    spotColor = Color(0xFF159895).copy(alpha = 0.5f)
+                    elevation = 40.dp,
+                    shape = RoundedCornerShape(36.dp),
+                    spotColor = Color(0xFF57C5B6).copy(alpha = 0.5f),
+                    ambientColor = Color(0xFF159895).copy(alpha = 0.4f)
                 )
                 .background(
-                    color = Color(0xFFFFF8DC), // 象牙色
-                    shape = RoundedCornerShape(28.dp)
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.97f),
+                            Color.White.copy(alpha = 0.90f)
+                        ),
+                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                        end = androidx.compose.ui.geometry.Offset(0.5f, 1f)
+                    ),
+                    shape = RoundedCornerShape(36.dp)
                 )
                 .drawBehind {
-                    val strokeWidth = 4.dp.toPx()
+                    // 多层次玻璃拟态边框
+                    val strokeWidth = 3.5.dp.toPx()
+
+                    // 外层渐变边框
                     drawRoundRect(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color(0xFF159895),
-                                Color(0xFFFFD700),
-                                Color(0xFF159895)
+                                Color(0xFF57C5B6).copy(alpha = 0.7f),
+                                Color(0xFFFFD700).copy(alpha = 0.9f),
+                                Color(0xFF57C5B6).copy(alpha = 0.7f)
                             )
                         ),
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
-                        cornerRadius = CornerRadius(28.dp.value, 28.dp.value)
+                        cornerRadius = CornerRadius(36.dp.value, 36.dp.value)
+                    )
+
+                    // 内部高光效果 - 增加立体感
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.7f),
+                                Color.White.copy(alpha = 0.3f),
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.15f)
+                            )
+                        ),
+                        cornerRadius = CornerRadius(32.dp.value, 32.dp.value)
                     )
                 }
-                .padding(28.dp)
+                .padding(26.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // 小火图标 - 呼吸动画
+                // 小火图标 - 更生动的动画效果
                 var iconScale by remember { mutableStateOf(1f) }
+                var iconRotation by remember { mutableStateOf(0f) }
+                var iconOffsetY by remember { mutableStateOf(0f) }
 
                 LaunchedEffect(Unit) {
                     while (true) {
+                        // 向上浮动并放大
                         delay(1500)
-                        iconScale = 1.1f
-                        delay(1500)
+                        iconScale = 1.2f
+                        iconRotation = 8f
+                        iconOffsetY = -5f
+                        delay(300)
+                        // 向下浮动
                         iconScale = 1f
+                        iconRotation = 0f
+                        iconOffsetY = 0f
+                        delay(1500)
+                        // 向下缩小
+                        iconScale = 0.95f
+                        iconOffsetY = 3f
+                        delay(300)
+                        iconScale = 1f
+                        iconOffsetY = 0f
                     }
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(70.dp)
+                        .size(80.dp)
+                        .offset(y = iconOffsetY.dp)
                         .scale(iconScale)
+                        .rotate(iconRotation)
                         .shadow(
-                            elevation = 12.dp,
+                            elevation = 20.dp,
                             shape = CircleShape,
-                            spotColor = Color(0xFFFFD700).copy(alpha = 0.6f)
+                            spotColor = Color(0xFFFFD700).copy(alpha = 0.8f),
+                            ambientColor = Color(0xFFF4A261).copy(alpha = 0.4f)
                         )
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    Color.White,
-                                    Color(0xFFFFF8DC)
+                                    Color(0xFFFFF8DC),
+                                    Color(0xFFFFE5A0),
+                                    Color(0xFFFFD966)
                                 )
                             ),
                             shape = CircleShape
-                        ),
+                        )
+                        .drawBehind {
+                            // 多层发光效果
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color(0xFFFFD700).copy(alpha = 0.5f),
+                                        Color(0xFFFFD700).copy(alpha = 0.2f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                radius = size.minDimension / 2 + 12.dp.toPx()
+                            )
+                            // 内圈高光
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colorStops = arrayOf(
+                                        0.0f to Color.White.copy(alpha = 0.6f),
+                                        0.5f to Color.Transparent
+                                    )
+                                ),
+                                radius = size.minDimension / 2 - 8.dp.toPx()
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "🐯",
-                        fontSize = 40.sp
+                        fontSize = 48.sp
                     )
                 }
 
-                // 标题
+                // 标题 - 渐变背景效果
                 Text(
                     text = "家长验证",
-                    fontSize = 24.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A5F7A)
+                    color = Color(0xFF1A5F7A),
+                    modifier = Modifier
+                        .drawBehind {
+                            // 渐变背景
+                            drawRoundRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF159895).copy(alpha = 0.15f),
+                                        Color(0xFFFFD700).copy(alpha = 0.2f),
+                                        Color(0xFF159895).copy(alpha = 0.15f)
+                                    )
+                                ),
+                                cornerRadius = CornerRadius(12.dp.value, 12.dp.value)
+                            )
+                        }
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
                 )
 
-                // 提示文字
-                Text(
-                    text = "请回答数学问题",
-                    fontSize = 14.sp,
-                    color = Color(0xFF666666)
-                )
+                // 提示文字 - 添加图标
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "🔐",
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "请回答数学问题以继续",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF555555)
+                    )
+                }
 
-                // 数学问题
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 数学问题卡片 - 增强视觉效果
+                var questionScale by remember { mutableStateOf(1f) }
+                var questionGlow by remember { mutableStateOf(0f) }
+
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        delay(2500)
+                        questionScale = 1.06f
+                        questionGlow = 1f
+                        delay(250)
+                        questionScale = 1f
+                        delay(250)
+                        questionGlow = 0f
+                    }
+                }
+
                 Box(
                     modifier = Modifier
+                        .scale(questionScale)
                         .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(16.dp),
-                            spotColor = Color(0xFFE63946).copy(alpha = 0.4f)
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color(0xFFE63946).copy(alpha = 0.6f + questionGlow * 0.3f),
+                            ambientColor = Color(0xFFE63946).copy(alpha = 0.4f)
                         )
                         .background(
-                            color = Color.White,
-                            shape = RoundedCornerShape(16.dp)
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    Color(0xFFFFF5F5),
+                                    Color(0xFFFFE8E8)
+                                ),
+                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                end = androidx.compose.ui.geometry.Offset(1f, 1f)
+                            ),
+                            shape = RoundedCornerShape(24.dp)
                         )
-                        .padding(horizontal = 28.dp, vertical = 14.dp)
+                        .drawBehind {
+                            // 渐变边框 - 动态发光效果
+                            val strokeWidth = 3.5.dp.toPx()
+                            drawRoundRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFE63946),
+                                        Color(0xFFFF6B6B).copy(alpha = 0.8f + questionGlow * 0.2f),
+                                        Color(0xFFE63946)
+                                    )
+                                ),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
+                                cornerRadius = CornerRadius(24.dp.value, 24.dp.value)
+                            )
+                            // 内部高光
+                            drawRoundRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.5f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                cornerRadius = CornerRadius(20.dp.value, 20.dp.value)
+                            )
+                        }
+                        .padding(horizontal = 36.dp, vertical = 18.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = question,
-                        fontSize = 32.sp,
+                        fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFE63946)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // 数字选项网格（6列）
+                // 数字选项网格 - 5列布局，圆形按钮更适合儿童
+                val numberRows = listOf(
+                    listOf(2, 3, 4, 5, 6),
+                    listOf(7, 8, 9, 10, 11),
+                    listOf(12, 13, 14, 15, 16),
+                    listOf(17, 18)
+                )
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // 第一行：2-7
-                    NumberButtonRow(
-                        numbers = listOf(2, 3, 4, 5, 6, 7),
-                        onSubmit = onSubmit
-                    )
-                    // 第二行：8-13
-                    NumberButtonRow(
-                        numbers = listOf(8, 9, 10, 11, 12, 13),
-                        onSubmit = onSubmit
-                    )
-                    // 第三行：14-18
-                    NumberButtonRow(
-                        numbers = listOf(14, 15, 16, 17, 18),
-                        onSubmit = onSubmit,
-                        modifier = Modifier.weight(1f)
-                    )
+                    numberRows.forEach { row ->
+                        CircularNumberButtonRow(
+                            numbers = row,
+                            onSubmit = onSubmit
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // 取消按钮
+                // 取消按钮 - 现代化设计
                 var cancelScale by remember { mutableStateOf(1f) }
-                Text(
-                    text = "取消",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF6C757D),
+                Box(
                     modifier = Modifier
                         .scale(cancelScale)
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color(0xFF6C757D).copy(alpha = 0.4f)
+                        )
                         .clickable {
                             cancelScale = 0.92f
                             onDismiss()
                         }
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                )
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xFF6C757D).copy(alpha = 0.15f),
+                                    Color(0xFF6C757D).copy(alpha = 0.08f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .drawBehind {
+                            // 边框
+                            val strokeWidth = 1.5.dp.toPx()
+                            drawRoundRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF6C757D).copy(alpha = 0.3f),
+                                        Color(0xFF6C757D).copy(alpha = 0.15f),
+                                        Color(0xFF6C757D).copy(alpha = 0.3f)
+                                    )
+                                ),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
+                                cornerRadius = CornerRadius(24.dp.value, 24.dp.value)
+                            )
+                        }
+                        .padding(horizontal = 32.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "✕",
+                            fontSize = 14.sp,
+                            color = Color(0xFF6C757D)
+                        )
+                        Text(
+                            text = "取消",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6C757D)
+                        )
+                    }
+                }
 
                 LaunchedEffect(cancelScale) {
                     if (cancelScale != 1f) {
@@ -1548,70 +1742,132 @@ private fun MathVerificationDialog(
 }
 
 /**
- * 数字按钮行 - 每行6个数字
+ * 圆形数字按钮行 - 每行5个圆形按钮（增强版儿童友好设计）
+ * 圆形按钮更适合儿童操作，触摸目标更大且更直观
  */
 @Composable
-private fun NumberButtonRow(
+private fun CircularNumberButtonRow(
     numbers: List<Int>,
     onSubmit: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.fillMaxWidth()
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         numbers.forEach { num ->
+            // 每个按钮独立的动画状态
             var buttonScale by remember { mutableStateOf(1f) }
+            var buttonRotation by remember { mutableStateOf(0f) }
+            var isPressed by remember { mutableStateOf(false) }
+            var showRipple by remember { mutableStateOf(false) }
+
+            // 使用不同的渐变色系列，让按钮更有趣且色彩丰富
+            val colorScheme = when (num) {
+                in 2..4 -> listOf(Color(0xFF159895), Color(0xFF57C5B6))       // 青绿色系
+                in 5..8 -> listOf(Color(0xFF2A9D8F), Color(0xFF57C5B6))      // 绿松石系
+                in 9..12 -> listOf(Color(0xFF1A5F7A), Color(0xFF159895))    // 蓝绿色系
+                in 13..16 -> listOf(Color(0xFF264653), Color(0xFF2A9D8F))   // 深青绿色系
+                else -> listOf(Color(0xFFE76F51), Color(0xFFFF6B6B))        // 珊瑚红系（17-18）
+            }
 
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .scale(buttonScale)
-                    .aspectRatio(1f)
+                    .rotate(buttonRotation)
+                    .size(56.dp)  // 更大的触摸目标（符合儿童友好的≥100pt标准）
                     .shadow(
-                        elevation = 6.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        spotColor = Color(0xFF159895).copy(alpha = 0.5f)
+                        elevation = if (isPressed) 6.dp else 14.dp,
+                        shape = CircleShape,
+                        spotColor = colorScheme[0].copy(alpha = 0.6f),
+                        ambientColor = colorScheme[1].copy(alpha = 0.4f)
                     )
-                    .clickable {
-                        buttonScale = 0.88f
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null  // 禁用默认波纹，使用自定义效果
+                    ) {
+                        buttonScale = 0.82f
+                        buttonRotation = -8f
+                        isPressed = true
+                        showRipple = true
                         onSubmit(num)
                     }
                     .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFF159895),
-                                Color(0xFF57C5B6)
-                            )
+                        brush = Brush.linearGradient(
+                            colors = colorScheme,
+                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(1f, 1f)
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = CircleShape
                     )
                     .drawBehind {
-                        // 高光效果
-                        drawRoundRect(
-                            brush = Brush.verticalGradient(
+                        // 内部高光效果 - 增加立体感
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.White.copy(alpha = 0.5f),
+                                    0.25f to Color.White.copy(alpha = 0.25f),
+                                    0.6f to Color.Transparent,
+                                    1.0f to Color(0xFF000000).copy(alpha = 0.15f)
+                                )
+                            ),
+                            radius = size.minDimension / 2
+                        )
+                        // 外部发光效果 - 多层次光晕
+                        drawCircle(
+                            brush = Brush.radialGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = 0.3f),
+                                    colorScheme[0].copy(alpha = 0.4f),
+                                    colorScheme[0].copy(alpha = 0.15f),
                                     Color.Transparent
                                 )
                             ),
-                            cornerRadius = CornerRadius(12.dp.value, 12.dp.value)
+                            radius = size.minDimension / 2 + 6.dp.toPx(),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
                         )
+                        // 点击时的波纹效果
+                        if (showRipple) {
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.6f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                radius = size.minDimension / 2 * 0.8f
+                            )
+                        }
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "$num",
-                    fontSize = 18.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    modifier = Modifier
+                        .drawBehind {
+                            // 文字阴影效果
+                            drawCircle(
+                                color = Color(0xFF000000).copy(alpha = 0.25f),
+                                radius = 32.dp.toPx()
+                            )
+                        }
                 )
             }
 
-            LaunchedEffect(buttonScale) {
-                if (buttonScale != 1f) {
-                    delay(100)
+            // 动画恢复逻辑 - 更平滑的过渡
+            LaunchedEffect(buttonScale, buttonRotation) {
+                if (buttonScale != 1f || buttonRotation != 0f) {
+                    delay(180)
                     buttonScale = 1f
+                    buttonRotation = 0f
+                    delay(50)
+                    isPressed = false
+                    delay(150)
+                    showRipple = false
                 }
             }
         }

@@ -96,8 +96,9 @@ class ParentViewModel(
      * @param minutes 时长（分钟）
      */
     private fun handleUpdateSessionTimeLimit(minutes: Int) {
-        // 对于修改时间设置等敏感操作，先显示重新验证界面
+        // 存储用户选择的时间，然后显示验证界面
         _state.value = _state.value.copy(
+            pendingSessionTimeLimit = minutes,
             showReverification = true,
             reverificationQuestion = generateMathQuestion(),
             pendingAction = ParentAction.UPDATE_TIME_SETTINGS
@@ -182,8 +183,11 @@ class ParentViewModel(
             when (action) {
                 ParentAction.RESET_PROGRESS -> executeResetProgress()
                 ParentAction.UPDATE_TIME_SETTINGS -> {
-                    // 这里简化处理，实际应该保存新的时间设置
-                    sendEffect(ParentEffect.ShowSettingsSavedHint)
+                    // 使用待处理的时间值来更新设置
+                    val pendingMinutes = currentState.pendingSessionTimeLimit
+                    if (pendingMinutes != null) {
+                        executeUpdateTimeSettings(pendingMinutes)
+                    }
                 }
                 ParentAction.CLEAR_STATISTICS -> {
                     // 清除使用统计
@@ -194,11 +198,12 @@ class ParentViewModel(
                 }
             }
 
-            // 隐藏重新验证界面
+            // 隐藏重新验证界面，清除待处理的状态
             _state.value = currentState.copy(
                 showReverification = false,
                 reverificationQuestion = null,
-                pendingAction = null
+                pendingAction = null,
+                pendingSessionTimeLimit = null
             )
         } else {
             // 验证失败，生成新题目
@@ -297,6 +302,25 @@ class ParentViewModel(
     }
 
     // ==================== 敏感操作执行 ====================
+
+    /**
+     * 执行更新时间设置
+     *
+     * @param minutes 每次使用时长（分钟）
+     */
+    private fun executeUpdateTimeSettings(minutes: Int) {
+        viewModelScope.launch {
+            // 获取当前settings并更新
+            progressRepository.getParentSettings().first().let { currentSettings ->
+                val updatedSettings = currentSettings.copy(
+                    sessionDurationMinutes = minutes
+                )
+                progressRepository.updateParentSettings(updatedSettings)
+            }
+            // 发送保存成功提示
+            sendEffect(ParentEffect.ShowSettingsSavedHint)
+        }
+    }
 
     /**
      * 执行重置游戏进度
