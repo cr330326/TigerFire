@@ -103,6 +103,27 @@ class AndroidAudioManager(
 
     // ==================== 公共方法实现 ====================
 
+    /**
+     * 预加载音效（静音加载，不播放）
+     * 用于页面初始化时预加载音效，避免首次播放无声音
+     */
+    fun preloadSounds() {
+        scope.launch {
+            try {
+                // 预加载点击音效（三个场景）
+                loadSound(getSoundResourceName(SoundType.CLICK, SceneType.FIRE_STATION))
+                loadSound(getSoundResourceName(SoundType.CLICK, SceneType.SCHOOL))
+                loadSound(getSoundResourceName(SoundType.CLICK, SceneType.FOREST))
+                // 预加载其他常用音效
+                loadSound(getSoundResourceName(SoundType.SUCCESS))
+                loadSound(getSoundResourceName(SoundType.HINT))
+                loadSound(getSoundResourceName(SoundType.BADGE))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     override fun playClickSound(scene: SceneType?) {
         playSoundEffect(SoundType.CLICK, scene)
     }

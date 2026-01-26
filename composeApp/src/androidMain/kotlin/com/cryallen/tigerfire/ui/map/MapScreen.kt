@@ -107,6 +107,13 @@ fun MapScreen(
     // 待导航的场景（用于动画完成后延迟导航）
     var pendingNavigationScene by remember { mutableStateOf<SceneType?>(null) }
 
+    // ==================== 预加载音效 ====================
+    // 在页面初始化时预加载音效，避免首次点击无声音
+    LaunchedEffect(Unit) {
+        // 静音预加载音效，不播放声音
+        audioManager.preloadSounds()
+    }
+
     // ==================== 监听跳跃动画完成，延迟导航 ====================
     LaunchedEffect(isJumping, pendingNavigationScene) {
         // 当跳跃动画结束且有待导航的场景时
@@ -568,6 +575,10 @@ fun MapScreen(
                     secondaryColor = Color(0xFFFF6B6B),
                     accentColor = Color(0xFFFFD700),
                     onClick = {
+                        // 防重复点击：动画执行期间忽略点击
+                        if (isJumping) return@EnhancedSceneIcon
+                        // 播放点击音效
+                        audioManager.playClickSound(SceneType.FIRE_STATION)
                         // 更新 ViewModel 状态（用于返回时保持位置）
                         // ViewModel 会自动增加 animationTrigger 并更新 selectedScene
                         viewModel.onEvent(MapEvent.UpdateSelectedScene(SceneType.FIRE_STATION))
@@ -592,6 +603,10 @@ fun MapScreen(
                     secondaryColor = Color(0xFFA8DADC),
                     accentColor = Color(0xFFFFE66D),
                     onClick = {
+                        // 防重复点击：动画执行期间忽略点击
+                        if (isJumping) return@EnhancedSceneIcon
+                        // 播放点击音效
+                        audioManager.playClickSound(SceneType.SCHOOL)
                         // 更新 ViewModel 状态（用于返回时保持位置）
                         // ViewModel 会自动增加 animationTrigger 并更新 selectedScene
                         viewModel.onEvent(MapEvent.UpdateSelectedScene(SceneType.SCHOOL))
@@ -616,6 +631,10 @@ fun MapScreen(
                     secondaryColor = Color(0xFF95D5B2),
                     accentColor = Color(0xFFFFB6C1),
                     onClick = {
+                        // 防重复点击：动画执行期间忽略点击
+                        if (isJumping) return@EnhancedSceneIcon
+                        // 播放点击音效
+                        audioManager.playClickSound(SceneType.FOREST)
                         // 更新 ViewModel 状态（用于返回时保持位置）
                         // ViewModel 会自动增加 animationTrigger 并更新 selectedScene
                         viewModel.onEvent(MapEvent.UpdateSelectedScene(SceneType.FOREST))
