@@ -1,5 +1,6 @@
 package com.cryallen.tigerfire.presentation.firestation
 
+import com.cryallen.tigerfire.data.repository.ProgressRepositoryImpl
 import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.SceneStatus
@@ -63,7 +64,7 @@ class FireStationViewModel(
     init {
         // 订阅游戏进度，仅在初始化时加载已完成的设备
         viewModelScope.launch {
-            val repository = progressRepository as? com.cryallen.tigerfire.data.repository.ProgressRepositoryImpl
+            val repository = progressRepository as? ProgressRepositoryImpl
             val progress = repository?.getGameProgressNow() ?: progressRepository.getGameProgress().first()
 
             val completedDevices = progress.fireStationCompletedItems
@@ -145,7 +146,7 @@ class FireStationViewModel(
 
         viewModelScope.launch {
             // 使用同步方法直接从数据库获取最新进度
-            val repository = progressRepository as? com.cryallen.tigerfire.data.repository.ProgressRepositoryImpl
+            val repository = progressRepository as? ProgressRepositoryImpl
             val progress = repository?.getGameProgressNow() ?: progressRepository.getGameProgress().first()
 
             // 使用数据库状态作为基准，合并所有已完成的设备
@@ -178,8 +179,9 @@ class FireStationViewModel(
             val newCompletedDevices = dbCompletedDevices + device
             val isAllCompleted = updatedProgress.isFireStationCompleted()
 
-            // ✅ 关键修复：添加消防站徽章
-            val nextVariant = updatedProgress.badges.calculateNextVariant(device.deviceId)
+            // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
+            val existingBadges = progressRepository.getAllBadges().first()
+            val nextVariant = existingBadges.calculateNextVariant(device.deviceId)
             val deviceBadge = Badge(
                 id = "${device.deviceId}_v${nextVariant}_${com.cryallen.tigerfire.presentation.common.PlatformDateTime.getCurrentTimeMillis()}",
                 baseType = device.deviceId,  // "extinguisher", "hydrant", "ladder", "hose"
@@ -187,7 +189,8 @@ class FireStationViewModel(
                 variant = nextVariant,
                 earnedAt = com.cryallen.tigerfire.presentation.common.PlatformDateTime.getCurrentTimeMillis()
             )
-            updatedProgress = updatedProgress.addBadge(deviceBadge)
+            // 不需要添加到 updatedProgress.badges（因为updateGameProgress会单独处理徽章表）
+            // updatedProgress = updatedProgress.addBadge(deviceBadge)
 
             // 检查是否全部完成，如果是则解锁学校场景
             val finalProgress = if (isAllCompleted) {
@@ -196,8 +199,10 @@ class FireStationViewModel(
                 updatedProgress
             }
 
-            // 保存到数据库
+            // 保存到数据库（先保存GameProgress）
             progressRepository.updateGameProgress(finalProgress)
+            // ✅ 单独保存徽章到Badge表
+            progressRepository.addBadge(deviceBadge)
 
             // 发送音效副作用
             sendEffect(FireStationEffect.PlayBadgeSound)

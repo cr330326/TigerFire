@@ -226,8 +226,9 @@ class SchoolViewModel(
                 // 解锁森林场景
                 updatedProgress = updatedProgress.updateSceneStatus(SceneType.FOREST, SceneStatus.UNLOCKED)
 
-                // ✅ 改进：支持变体系统，计算下一个变体编号
-                val nextVariant = progress.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
+                // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
+                val existingBadges = progressRepository.getAllBadges().first()
+                val nextVariant = existingBadges.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
 
                 // 添加学校徽章
                 val schoolBadge = Badge(
@@ -237,9 +238,11 @@ class SchoolViewModel(
                     variant = nextVariant,  // 使用计算出的变体编号
                     earnedAt = PlatformDateTime.getCurrentTimeMillis()
                 )
-                updatedProgress = updatedProgress.addBadge(schoolBadge)
 
+                // 保存到数据库（先保存GameProgress）
                 progressRepository.updateGameProgress(updatedProgress)
+                // ✅ 单独保存徽章到Badge表
+                progressRepository.addBadge(schoolBadge)
 
                 // 更新本地状态
                 _state.value = currentState.copy(
@@ -258,8 +261,9 @@ class SchoolViewModel(
                 // 发送播放赞美语音副作用："你真棒！记住，着火要找大人帮忙！"
                 sendEffect(SchoolEffect.PlayVoice(VOICE_PRAISE))
             } else {
-                // ✅ 改进：重复观看也颁发变体徽章（支持3种变体）
-                val nextVariant = progress.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
+                // ✅ 关键修复：重复观看也颁发变体徽章（支持3种变体）
+                val existingBadges = progressRepository.getAllBadges().first()
+                val nextVariant = existingBadges.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
                 val maxVariants = com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType(SCHOOL_BADGE_BASE_TYPE)
 
                 // 检查是否还有未收集的变体
@@ -271,8 +275,8 @@ class SchoolViewModel(
                         variant = nextVariant,
                         earnedAt = PlatformDateTime.getCurrentTimeMillis()
                     )
-                    val updatedProgress = progress.addBadge(schoolBadge)
-                    progressRepository.updateGameProgress(updatedProgress)
+                    // ✅ 单独保存徽章到Badge表
+                    progressRepository.addBadge(schoolBadge)
 
                     // 显示获得了新变体徽章
                     sendEffect(SchoolEffect.ShowBadgeAnimation)

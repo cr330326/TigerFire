@@ -267,10 +267,11 @@ class ForestViewModel(
                 // 首次救援，更新进度
                 var updatedProgress = progress.incrementForestRescuedSheep()
 
-                // ✅ 改进：支持变体系统，为每只小羊单独计算变体
+                // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
                 // 使用 "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}" 作为基础类型
                 val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
-                val nextVariant = updatedProgress.calculateNextVariant(sheepBaseType)
+                val existingBadges = progressRepository.getAllBadges().first()
+                val nextVariant = existingBadges.calculateNextVariant(sheepBaseType)
 
                 // 添加森林徽章（带变体支持）
                 val sheepBadge = Badge(
@@ -281,8 +282,6 @@ class ForestViewModel(
                     earnedAt = PlatformDateTime.getCurrentTimeMillis()
                 )
 
-                updatedProgress = updatedProgress.addBadge(sheepBadge)
-
                 // 检查是否全部完成
                 val isAllCompleted = updatedProgress.forestRescuedSheep >= TOTAL_SHEEP
                 var finalProgress = updatedProgress
@@ -290,7 +289,10 @@ class ForestViewModel(
                     finalProgress = finalProgress.updateSceneStatus(SceneType.FOREST, SceneStatus.COMPLETED)
                 }
 
+                // 保存到数据库（先保存GameProgress）
                 progressRepository.updateGameProgress(finalProgress)
+                // ✅ 单独保存徽章到Badge表
+                progressRepository.addBadge(sheepBadge)
 
                 // 更新本地状态 - 基于当前最新状态，保留第一次更新的结果
                 val newRescuedSheep = _state.value.rescuedSheep + sheepIndex
@@ -314,9 +316,10 @@ class ForestViewModel(
                     sendEffect(ForestEffect.PlayCompleteVoice)
                 }
             } else {
-                // ✅ 改进：重复救援同一个小羊，也颁发变体徽章（支持2种变体）
+                // ✅ 关键修复：重复救援同一个小羊，也颁发变体徽章（支持2种变体）
                 val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
-                val nextVariant = progress.calculateNextVariant(sheepBaseType)
+                val existingBadges = progressRepository.getAllBadges().first()
+                val nextVariant = existingBadges.calculateNextVariant(sheepBaseType)
                 val maxVariants = com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType(sheepBaseType)
 
                 // 检查是否还有未收集的变体
@@ -328,8 +331,8 @@ class ForestViewModel(
                         variant = nextVariant,
                         earnedAt = PlatformDateTime.getCurrentTimeMillis()
                     )
-                    val updatedProgress = progress.addBadge(sheepBadge)
-                    progressRepository.updateGameProgress(updatedProgress)
+                    // ✅ 单独保存徽章到Badge表
+                    progressRepository.addBadge(sheepBadge)
 
                     // 显示获得了新变体徽章
                     sendEffect(ForestEffect.ShowBadgeAnimation(sheepIndex))
