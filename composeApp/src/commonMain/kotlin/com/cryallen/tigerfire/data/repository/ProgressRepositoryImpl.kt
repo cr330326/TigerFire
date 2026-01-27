@@ -127,18 +127,29 @@ class ProgressRepositoryImpl(
      * 从数据库获取当前徽章列表
      */
     override fun getAllBadges(): Flow<List<Badge>> {
-        return database.badgeQueries.selectAllBadges()
-            .asFlow()
-            .mapToList(Dispatchers.Default)
-            .map { badgeEntities ->
-                badgeEntities.map { it.toDomainModel() }
-            }
+        return kotlinx.coroutines.flow.flow {
+            // 立即发出当前数据
+            val currentBadges = database.badgeQueries.selectAllBadges().executeAsList().map { it.toDomainModel() }
+            android.util.Log.e("ProgressRepository", "getAllBadges [initial]: count=${currentBadges.size}, badges=${currentBadges.map { "${it.baseType}(v${it.variant})" }}")
+            emit(currentBadges)
+
+            // 然后监听数据库变化
+            database.badgeQueries.selectAllBadges()
+                .asFlow()
+                .mapToList(Dispatchers.Default)
+                .collect { badgeEntities ->
+                    val badges = badgeEntities.map { it.toDomainModel() }
+                    android.util.Log.e("ProgressRepository", "getAllBadges [update]: count=${badges.size}, badges=${badges.map { "${it.baseType}(v${it.variant})" }}")
+                    emit(badges)
+                }
+        }
     }
 
     /**
      * 添加徽章到数据库
      */
     override suspend fun addBadge(badge: Badge) {
+        android.util.Log.e("ProgressRepository", "addBadge: id=${badge.id}, baseType=${badge.baseType}, variant=${badge.variant}, scene=${badge.scene}")
         database.badgeQueries.insertBadge(
             id = badge.id,
             scene = badge.scene.name,

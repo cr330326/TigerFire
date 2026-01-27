@@ -1,5 +1,6 @@
 package com.cryallen.tigerfire.ui.collection
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandIn
@@ -108,6 +109,13 @@ fun CollectionScreen(
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         contentVisible = true
+    }
+
+    // 监听收集完成状态，播放音效
+    LaunchedEffect(state.hasCollectedAllBadges) {
+        if (state.hasCollectedAllBadges) {
+            audioManager.playAllCompletedSound()
+        }
     }
 
     // 订阅副作用（Effect）- 使用 CollectAsState 或者在离开时正确清理
@@ -569,8 +577,17 @@ private fun BadgeList(
     viewModel: CollectionViewModel,
     onBadgeClick: (com.cryallen.tigerfire.domain.model.Badge) -> Unit
 ) {
-    // 检查是否有任何徽章
-    val hasAnyBadges = viewModel.state.value.totalBadgeCount > 0
+    val state = viewModel.state.value
+
+
+    // 调试日志 - 打印徽章状态
+    LaunchedEffect(state.badges) {
+        Log.e("CollectionBadgeList", "uniqueBadgeCount=${state.uniqueBadgeCount}, totalBadgeCount=${state.totalBadgeCount}, badges=${state.badges.map { "${it.baseType}(v${it.variant})" }}")
+    }
+
+    // 检查是否有任何徽章 - 使用 uniqueBadgeCount 更可靠
+    // 因为森林场景有变体系统，totalBadgeCount 可能包含多个变体
+    val hasAnyBadges = state.uniqueBadgeCount > 0
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -1320,7 +1337,7 @@ private fun CompletionCelebrationOverlay() {
                 modifier = Modifier.scale(scale)
             )
             Text(
-                text = "太棒了！",
+                text = "恭喜你！",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White

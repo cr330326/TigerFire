@@ -96,9 +96,15 @@ class ForestViewModel(
                     .onStart { emit(emptyList()) }
             ) { progress, badges ->
                 // 从徽章列表中反推已救援的小羊索引
+                // baseType 格式: "forest_sheep_sheep0" 或 "forest_sheep_sheep1"
+                // 需要从 baseType 中提取小羊索引，而不是使用 variant
                 val rescuedSheep = badges
                     .filter { it.scene == SceneType.FOREST }
-                    .map { it.variant }
+                    .mapNotNull { badge ->
+                        // 从 baseType (如 "forest_sheep_sheep0") 中提取小羊索引
+                        val match = Regex("sheep(\\d)$").find(badge.baseType)
+                        match?.groupValues?.get(1)?.toIntOrNull()
+                    }
                     .toSet()
 
                 _state.value = _state.value.copy(

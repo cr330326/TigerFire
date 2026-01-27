@@ -265,9 +265,20 @@ class AndroidAudioManager(
      * @return MediaPlayer 实例
      */
     private fun createMediaPlayer(assetPath: String): MediaPlayer {
-        val afd = context.assets.openFd(assetPath)
         return MediaPlayer().apply {
-            setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            try {
+                // 对于 MP3 文件，先尝试 AssetFileDescriptor
+                val afd = context.assets.openFd(assetPath)
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            } catch (e: Exception) {
+                // MP3 文件可能被压缩，使用临时文件方式
+                val inputStream = context.assets.open(assetPath)
+                val tempFile = java.io.File.createTempFile("temp_audio", ".mp3")
+                tempFile.deleteOnExit()
+                inputStream.copyTo(tempFile.outputStream())
+                inputStream.close()
+                setDataSource(tempFile.absolutePath)
+            }
             prepare()
             setOnCompletionListener {
                 it.release()
