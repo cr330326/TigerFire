@@ -108,7 +108,7 @@ fun List<Badge>.groupByBaseType(): Map<String, List<Badge>> {
  * 基础徽章类型：
  * - 消防站：extinguisher, hydrant, ladder, hose（4 种）
  * - 学校：school（1 种）
- * - 森林：sheep1, sheep2（2 种）
+ * - 森林：forest_sheep_sheep0, forest_sheep_sheep1（2 种）
  *
  * @return 是否集齐全部 7 种基础徽章
  */
@@ -116,7 +116,7 @@ fun List<Badge>.hasAllUniqueBadges(): Boolean {
     val requiredBaseTypes = setOf(
         "extinguisher", "hydrant", "ladder", "hose",
         "school",
-        "sheep1", "sheep2"
+        "forest_sheep_sheep0", "forest_sheep_sheep1"
     )
     val collectedTypes = this.map { it.baseType }.toSet()
     return requiredBaseTypes.all { it in collectedTypes }
@@ -131,7 +131,7 @@ fun List<Badge>.getCollectionProgress(): Float {
     val requiredBaseTypes = setOf(
         "extinguisher", "hydrant", "ladder", "hose",
         "school",
-        "sheep1", "sheep2"
+        "forest_sheep_sheep0", "forest_sheep_sheep1"
     )
     val collectedTypes = this.map { it.baseType }.toSet()
     val collectedCount = requiredBaseTypes.count { it in collectedTypes }

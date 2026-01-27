@@ -145,3 +145,102 @@ fun GameProgress.getForestProgress(): Pair<Int, Int> {
         GameProgress.FOREST_TOTAL_SHEEP
     )
 }
+
+// ==================== 徽章变体系统扩展 ====================
+
+/**
+ * 获取指定基础类型的最大变体数量
+ *
+ * 根据徽章类型返回其支持的最大变体数量：
+ * - 消防站设备（extinguisher, hydrant, ladder, hose）：4 种变体（红/黄/蓝/绿）
+ * - 学校（school）：3 种变体（不同边框颜色）
+ * - 森林小羊（forest_sheep）：2 种变体（不同小羊表情）
+ * - 其他类型：1 种（无变体）
+ *
+ * @param baseType 基础类型
+ * @return 最大变体数量
+ */
+fun getMaxVariantsForBaseType(baseType: String): Int {
+    return when (baseType) {
+        "extinguisher", "hydrant", "ladder", "hose" -> 4
+        "school" -> 3
+        "forest_sheep" -> 2
+        else -> 1
+    }
+}
+
+/**
+ * 计算指定基础类型的下一个变体编号
+ *
+ * @param baseType 基础类型
+ * @return 下一个变体编号（0 到 maxVariants-1）
+ */
+fun GameProgress.calculateNextVariant(baseType: String): Int {
+    val maxVariants = getMaxVariantsForBaseType(baseType)
+    val existingCount = badges.count { it.baseType == baseType }
+    return existingCount % maxVariants
+}
+
+/**
+ * 检查是否应颁发变体徽章（即是否已获得过该基础类型的徽章）
+ *
+ * @param baseType 基础类型
+ * @return true 如果已获得过该类型的徽章（本次应颁发变体）
+ */
+fun GameProgress.shouldAwardVariantBadge(baseType: String): Boolean {
+    return badges.any { it.baseType == baseType }
+}
+
+/**
+ * 获取指定基础类型的已获得变体数量
+ *
+ * @param baseType 基础类型
+ * @return 该类型的徽章数量（包含所有变体）
+ */
+fun GameProgress.getBadgeVariantCount(baseType: String): Int {
+    return badges.count { it.baseType == baseType }
+}
+
+/**
+ * 获取指定基础类型的所有变体徽章
+ *
+ * @param baseType 基础类型
+ * @return 该类型的所有徽章列表
+ */
+fun GameProgress.getBadgesByBaseType(baseType: String): List<Badge> {
+    return badges.filter { it.baseType == baseType }
+}
+
+/**
+ * 检查指定基础类型是否已收集所有变体
+ *
+ * @param baseType 基础类型
+ * @return true 如果已收集该类型的所有变体
+ */
+fun GameProgress.hasAllVariantsForBaseType(baseType: String): Boolean {
+    val maxVariants = getMaxVariantsForBaseType(baseType)
+    val collectedCount = badges.count { it.baseType == baseType }
+    return collectedCount >= maxVariants
+}
+
+/**
+ * 获取指定场景的徽章收集数量（包含变体）
+ *
+ * @param scene 场景类型
+ * @return 该场景的徽章总数
+ */
+fun GameProgress.getBadgeCountForScene(scene: SceneType): Int {
+    return badges.count { it.scene == scene }
+}
+
+/**
+ * 获取指定场景的不同类型徽章数量（不包含变体）
+ *
+ * @param scene 场景类型
+ * @return 该场景的不同类型徽章数量
+ */
+fun GameProgress.getUniqueBadgeCountForScene(scene: SceneType): Int {
+    return badges.filter { it.scene == scene }
+        .distinctBy { it.baseType }
+        .size
+}

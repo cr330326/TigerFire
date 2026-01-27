@@ -134,6 +134,10 @@ fun ForestScreen(
                     // 播放完成语音："直升机能从天上救人，真厉害！"
                     audioManager.playVoice("audio/voices/forest_complete.mp3")
                 }
+                is ForestEffect.PlayCompletedSound -> {
+                    // 播放视频完成音效（非首次观看/重复救援时）
+                    audioManager.playVoice("audio/sfx_complete.mp3")
+                }
             }
         }
     }

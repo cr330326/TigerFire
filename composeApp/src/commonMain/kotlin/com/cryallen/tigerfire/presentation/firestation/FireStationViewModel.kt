@@ -4,6 +4,7 @@ import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.SceneStatus
 import com.cryallen.tigerfire.domain.model.SceneType
+import com.cryallen.tigerfire.domain.model.calculateNextVariant
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
 import com.cryallen.tigerfire.presentation.common.IdleTimer
 import com.cryallen.tigerfire.presentation.common.RapidClickGuard
@@ -173,9 +174,20 @@ class FireStationViewModel(
             }
 
             // 首次完成，更新进度
-            val updatedProgress = progress.addFireStationCompletedItem(device.deviceId)
+            var updatedProgress = progress.addFireStationCompletedItem(device.deviceId)
             val newCompletedDevices = dbCompletedDevices + device
             val isAllCompleted = updatedProgress.isFireStationCompleted()
+
+            // ✅ 关键修复：添加消防站徽章
+            val nextVariant = updatedProgress.badges.calculateNextVariant(device.deviceId)
+            val deviceBadge = Badge(
+                id = "${device.deviceId}_v${nextVariant}_${com.cryallen.tigerfire.presentation.common.PlatformDateTime.getCurrentTimeMillis()}",
+                baseType = device.deviceId,  // "extinguisher", "hydrant", "ladder", "hose"
+                scene = SceneType.FIRE_STATION,
+                variant = nextVariant,
+                earnedAt = com.cryallen.tigerfire.presentation.common.PlatformDateTime.getCurrentTimeMillis()
+            )
+            updatedProgress = updatedProgress.addBadge(deviceBadge)
 
             // 检查是否全部完成，如果是则解锁学校场景
             val finalProgress = if (isAllCompleted) {

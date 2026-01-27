@@ -4,6 +4,8 @@ import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.SceneStatus
 import com.cryallen.tigerfire.domain.model.SceneType
+import com.cryallen.tigerfire.domain.model.calculateNextVariant
+import com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
 import com.cryallen.tigerfire.presentation.common.IdleTimer
 import com.cryallen.tigerfire.presentation.common.PlatformDateTime
@@ -224,12 +226,15 @@ class SchoolViewModel(
                 // 解锁森林场景
                 updatedProgress = updatedProgress.updateSceneStatus(SceneType.FOREST, SceneStatus.UNLOCKED)
 
+                // ✅ 改进：支持变体系统，计算下一个变体编号
+                val nextVariant = progress.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
+
                 // 添加学校徽章
                 val schoolBadge = Badge(
-                    id = "${SCHOOL_BADGE_BASE_TYPE}_${PlatformDateTime.getCurrentTimeMillis()}",
+                    id = "${SCHOOL_BADGE_BASE_TYPE}_v${nextVariant}_${PlatformDateTime.getCurrentTimeMillis()}",
                     baseType = SCHOOL_BADGE_BASE_TYPE,
                     scene = SceneType.SCHOOL,
-                    variant = 0,
+                    variant = nextVariant,  // 使用计算出的变体编号
                     earnedAt = PlatformDateTime.getCurrentTimeMillis()
                 )
                 updatedProgress = updatedProgress.addBadge(schoolBadge)
@@ -253,8 +258,29 @@ class SchoolViewModel(
                 // 发送播放赞美语音副作用："你真棒！记住，着火要找大人帮忙！"
                 sendEffect(SchoolEffect.PlayVoice(VOICE_PRAISE))
             } else {
-                // 重复观看，播放普通完成音效，不重复发放徽章
-                sendEffect(SchoolEffect.PlayCompletedSound)
+                // ✅ 改进：重复观看也颁发变体徽章（支持3种变体）
+                val nextVariant = progress.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
+                val maxVariants = com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType(SCHOOL_BADGE_BASE_TYPE)
+
+                // 检查是否还有未收集的变体
+                if (nextVariant < maxVariants) {
+                    val schoolBadge = Badge(
+                        id = "${SCHOOL_BADGE_BASE_TYPE}_v${nextVariant}_${PlatformDateTime.getCurrentTimeMillis()}",
+                        baseType = SCHOOL_BADGE_BASE_TYPE,
+                        scene = SceneType.SCHOOL,
+                        variant = nextVariant,
+                        earnedAt = PlatformDateTime.getCurrentTimeMillis()
+                    )
+                    val updatedProgress = progress.addBadge(schoolBadge)
+                    progressRepository.updateGameProgress(updatedProgress)
+
+                    // 显示获得了新变体徽章
+                    sendEffect(SchoolEffect.ShowBadgeAnimation)
+                    sendEffect(SchoolEffect.PlayBadgeSound)
+                } else {
+                    // 所有变体已收集完成，只播放普通完成音效
+                    sendEffect(SchoolEffect.PlayCompletedSound)
+                }
                 sendEffect(SchoolEffect.PlayVoice(VOICE_PRAISE))
 
                 _state.value = currentState.copy(

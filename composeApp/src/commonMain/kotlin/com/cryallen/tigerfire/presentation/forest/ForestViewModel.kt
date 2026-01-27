@@ -4,6 +4,8 @@ import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.SceneStatus
 import com.cryallen.tigerfire.domain.model.SceneType
+import com.cryallen.tigerfire.domain.model.calculateNextVariant
+import com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
 import com.cryallen.tigerfire.presentation.common.IdleTimer
 import com.cryallen.tigerfire.presentation.common.PlatformDateTime
@@ -263,22 +265,27 @@ class ForestViewModel(
             // 检查小羊是否已救援
             if (!currentState.rescuedSheep.contains(sheepIndex)) {
                 // 首次救援，更新进度
-                val updatedProgress = progress.incrementForestRescuedSheep()
+                var updatedProgress = progress.incrementForestRescuedSheep()
 
-                // 添加森林徽章
+                // ✅ 改进：支持变体系统，为每只小羊单独计算变体
+                // 使用 "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}" 作为基础类型
+                val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
+                val nextVariant = updatedProgress.calculateNextVariant(sheepBaseType)
+
+                // 添加森林徽章（带变体支持）
                 val sheepBadge = Badge(
-                    id = "${FOREST_BADGE_BASE_TYPE}_${sheepIndex}_${PlatformDateTime.getCurrentTimeMillis()}",
-                    baseType = FOREST_BADGE_BASE_TYPE,
+                    id = "${sheepBaseType}_v${nextVariant}_${PlatformDateTime.getCurrentTimeMillis()}",
+                    baseType = sheepBaseType,  // 每只小羊有独立的徽章类型
                     scene = SceneType.FOREST,
-                    variant = sheepIndex,
+                    variant = nextVariant,
                     earnedAt = PlatformDateTime.getCurrentTimeMillis()
                 )
 
-                val updatedProgressWithBadge = updatedProgress.addBadge(sheepBadge)
+                updatedProgress = updatedProgress.addBadge(sheepBadge)
 
                 // 检查是否全部完成
-                val isAllCompleted = updatedProgressWithBadge.forestRescuedSheep >= TOTAL_SHEEP
-                var finalProgress = updatedProgressWithBadge
+                val isAllCompleted = updatedProgress.forestRescuedSheep >= TOTAL_SHEEP
+                var finalProgress = updatedProgress
                 if (isAllCompleted) {
                     finalProgress = finalProgress.updateSceneStatus(SceneType.FOREST, SceneStatus.COMPLETED)
                 }
@@ -305,6 +312,31 @@ class ForestViewModel(
                     sendEffect(ForestEffect.PlayAllCompletedSound)
                     // 播放完成语音："直升机能从天上救人，真厉害！"
                     sendEffect(ForestEffect.PlayCompleteVoice)
+                }
+            } else {
+                // ✅ 改进：重复救援同一个小羊，也颁发变体徽章（支持2种变体）
+                val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
+                val nextVariant = progress.calculateNextVariant(sheepBaseType)
+                val maxVariants = com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType(sheepBaseType)
+
+                // 检查是否还有未收集的变体
+                if (nextVariant < maxVariants) {
+                    val sheepBadge = Badge(
+                        id = "${sheepBaseType}_v${nextVariant}_${PlatformDateTime.getCurrentTimeMillis()}",
+                        baseType = sheepBaseType,
+                        scene = SceneType.FOREST,
+                        variant = nextVariant,
+                        earnedAt = PlatformDateTime.getCurrentTimeMillis()
+                    )
+                    val updatedProgress = progress.addBadge(sheepBadge)
+                    progressRepository.updateGameProgress(updatedProgress)
+
+                    // 显示获得了新变体徽章
+                    sendEffect(ForestEffect.ShowBadgeAnimation(sheepIndex))
+                    sendEffect(ForestEffect.PlayBadgeSound)
+                } else {
+                    // 所有变体已收集完成，只播放普通完成音效
+                    sendEffect(ForestEffect.PlayCompletedSound)
                 }
             }
         }

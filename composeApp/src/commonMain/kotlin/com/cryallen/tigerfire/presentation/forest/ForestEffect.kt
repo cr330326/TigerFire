@@ -34,6 +34,11 @@ sealed class ForestEffect {
     data object PlayBadgeSound : ForestEffect()
 
     /**
+     * 播放视频完成音效（非首次观看/重复救援时）
+     */
+    data object PlayCompletedSound : ForestEffect()
+
+    /**
      * 播放全部完成成功音效
      */
     data object PlayAllCompletedSound : ForestEffect()

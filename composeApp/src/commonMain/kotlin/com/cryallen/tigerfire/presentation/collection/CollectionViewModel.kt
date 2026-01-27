@@ -35,19 +35,17 @@ class CollectionViewModel(
     // ==================== 初始化 ====================
 
     init {
-        // 订阅游戏进度，加载徽章数据
+        // ✅ 修复：订阅独立的徽章数据流（而不是GameProgress中的空数组）
         viewModelScope.launch {
-            progressRepository.getGameProgress()
-                .collect { progress ->
-                    val badges = progress.badges
-
+            progressRepository.getAllBadges()
+                .collect { badges ->
                     // 按场景分组徽章
                     val badgesByScene = badges.groupBy { it.scene }
 
                     // 计算统计信息
-                    val totalBadgeCount = progress.getTotalBadgeCount()
-                    val uniqueBadgeCount = progress.getUniqueBadgeCount()
-                    val hasCollectedAllBadges = progress.hasCollectedAllBadges()
+                    val totalBadgeCount = badges.size
+                    val uniqueBadgeCount = badges.distinctBy { it.baseType }.size
+                    val hasCollectedAllBadges = uniqueBadgeCount >= com.cryallen.tigerfire.domain.model.GameProgress.TOTAL_UNIQUE_BADGES
 
                     _state.value = CollectionState(
                         badges = badges,
