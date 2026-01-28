@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Divider
@@ -140,7 +141,7 @@ fun ParentScreen(
                 ParentTitleSection()
 
                 // 可滚动内容
-                androidx.compose.foundation.lazy.LazyColumn(
+                LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -150,7 +151,8 @@ fun ParentScreen(
                         UsageStatsCard(
                             todayPlayTime = state.todayPlayTime,
                             totalPlayTime = state.totalPlayTime,
-                            totalBadgeCount = state.totalBadgeCount
+                            totalBadgeCount = state.totalBadgeCount,
+                            dailyUsageStats = state.settings.dailyUsageStats
                         )
                     }
 
@@ -437,7 +439,8 @@ private fun ParentTitleSection() {
 private fun UsageStatsCard(
     todayPlayTime: Long,
     totalPlayTime: Long,
-    totalBadgeCount: Int
+    totalBadgeCount: Int,
+    dailyUsageStats: Map<String, Long>
 ) {
     // 卡片入场动画
     var cardVisible by remember { mutableStateOf(false) }
@@ -557,7 +560,7 @@ private fun UsageStatsCard(
             Spacer(modifier = Modifier.height(20.dp))
 
             // 本周使用时长图表
-            WeeklyUsageChart()
+            WeeklyUsageChart(dailyUsageStats = dailyUsageStats)
         }
     }
 }
@@ -608,13 +611,15 @@ private fun StatItem(
 }
 
 /**
- * 本周使用时长图表 - 改进版
+ * 本周使用时长图表 - 使用真实数据
  */
 @Composable
-private fun WeeklyUsageChart() {
+private fun WeeklyUsageChart(dailyUsageStats: Map<String, Long>) {
     val days = listOf("一", "二", "三", "四", "五", "六", "日")
-    val dailyMinutes = listOf(45, 60, 30, 75, 50, 90, 40)
-    val maxMinutes = 120
+
+    // 获取本周7天的数据（毫秒转分钟）
+    val dailyMinutes = getLast7DaysMinutes(dailyUsageStats)
+    val maxMinutes = dailyMinutes.maxOrNull()?.coerceAtLeast(60) ?: 60
 
     val totalMinutes = dailyMinutes.sum()
     val hours = totalMinutes / 60
@@ -649,7 +654,7 @@ private fun WeeklyUsageChart() {
                 )
             }
             Text(
-                text = "总计 ${hours}h ${minutes}m",
+                text = if (totalMinutes > 0) "总计 ${hours}h ${minutes}m" else "暂无数据",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF159895)
@@ -665,7 +670,11 @@ private fun WeeklyUsageChart() {
         ) {
             days.forEachIndexed { index, day ->
                 val mins = dailyMinutes[index]
-                val barHeight = (mins.toFloat() / maxMinutes * 70).coerceAtLeast(10f)
+                val barHeight = if (mins > 0) {
+                    (mins.toFloat() / maxMinutes * 70).coerceAtLeast(10f)
+                } else {
+                    4f  // 最小高度显示空数据
+                }
 
                 Column(
                     modifier = Modifier.weight(1f),
@@ -677,17 +686,26 @@ private fun WeeklyUsageChart() {
                             .width(24.dp)
                             .height(barHeight.dp)
                             .shadow(
-                                elevation = 4.dp,
+                                elevation = if (mins > 0) 4.dp else 0.dp,
                                 shape = RoundedCornerShape(6.dp),
                                 spotColor = Color(0xFF57C5B6).copy(alpha = 0.5f)
                             )
                             .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0xFF159895),
-                                        Color(0xFF57C5B6)
+                                brush = if (mins > 0) {
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0xFF159895),
+                                            Color(0xFF57C5B6)
+                                        )
                                     )
-                                ),
+                                } else {
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0xFFE0E0E0),
+                                            Color(0xFFEEEEEE)
+                                        )
+                                    )
+                                },
                                 shape = RoundedCornerShape(6.dp)
                             )
                     )
@@ -705,6 +723,27 @@ private fun WeeklyUsageChart() {
             }
         }
     }
+}
+
+/**
+ * 获取最近7天的使用时长（分钟）
+ * 从后往前：昨天、前天...7天前
+ */
+private fun getLast7DaysMinutes(dailyUsageStats: Map<String, Long>): List<Int> {
+    val result = mutableListOf<Long>()
+    val calendar = java.util.Calendar.getInstance()
+
+    // 从昨天开始往前推7天
+    for (i in 1..7) {
+        calendar.time = java.util.Date()
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, -i)
+        val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            .format(calendar.time)
+        val milliseconds = dailyUsageStats[dateStr] ?: 0L
+        result.add(milliseconds / 1000 / 60)  // 转换为分钟
+    }
+
+    return result.map { it.toInt() }.reversed()  // 反转使周一在前
 }
 
 /**

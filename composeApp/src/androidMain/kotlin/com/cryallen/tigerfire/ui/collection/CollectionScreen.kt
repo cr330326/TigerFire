@@ -866,7 +866,7 @@ private fun SceneBadgeSection(
             }
 
             // 显示未获得的徽章槽位（灰色轮廓）
-            val remainingSlots = totalSlots - badges.size
+            val remainingSlots = maxOf(0, totalSlots - badges.size)
             items(remainingSlots) { index ->
                 EmptyBadgeSlot(
                     sceneColor = sceneColor,

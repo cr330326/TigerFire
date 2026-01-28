@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 /**
+ * 获取当前日期字符串（格式：yyyy-MM-dd）
+ * 平台相关实现
+ */
+expect fun getCurrentDate(): String
+
+/**
  * 家长模式 ViewModel
  *
  * 管理家长模式页面的状态和事件处理
@@ -37,20 +43,27 @@ class ParentViewModel(
     // ==================== 初始化 ====================
 
     init {
-        // 订阅游戏进度和家长设置
+        // 订阅游戏进度、家长设置和徽章列表
         viewModelScope.launch {
-            combine<com.cryallen.tigerfire.domain.model.GameProgress, ParentSettings, Pair<com.cryallen.tigerfire.domain.model.GameProgress, ParentSettings>>(
+            combine(
                 progressRepository.getGameProgress(),
-                progressRepository.getParentSettings()
-            ) { progress, settings ->
-                progress to settings
-            }.collect { (progress, settings) ->
+                progressRepository.getParentSettings(),
+                progressRepository.getAllBadges()
+            ) { progress, settings, badges ->
+                Triple(progress, settings, badges)
+            }.collect { (progress, settings, badges) ->
+                // 获取今日日期（格式：yyyy-MM-dd）
+                val today = getCurrentDate()
+
+                // 计算今日使用时长
+                val todayPlayTime = settings.dailyUsageStats[today] ?: 0L
+
                 _state.value = ParentState(
                     settings = settings,
-                    todayPlayTime = 0L, // TODO: 从使用统计服务获取今日时长
+                    todayPlayTime = todayPlayTime,
                     totalPlayTime = progress.totalPlayTime,
                     sceneStatuses = progress.sceneStatuses,
-                    totalBadgeCount = progress.getTotalBadgeCount()
+                    totalBadgeCount = badges.size
                 )
             }
         }
