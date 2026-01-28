@@ -340,11 +340,11 @@ class ParentViewModel(
      */
     private fun executeResetProgress() {
         viewModelScope.launch {
-            // 重置为初始进度
-            val initialProgress = com.cryallen.tigerfire.domain.model.GameProgress.initial()
+            // 使用 resetProgress() 方法，它会清空所有徽章、重置场景状态、清空统计数据
+            progressRepository.resetProgress()
 
-            // 更新进度
-            progressRepository.updateGameProgress(initialProgress)
+            // 获取重置后的进度数据更新本地状态
+            val initialProgress = progressRepository.getGameProgress().first()
 
             // 更新本地状态
             _state.value = _state.value.copy(
