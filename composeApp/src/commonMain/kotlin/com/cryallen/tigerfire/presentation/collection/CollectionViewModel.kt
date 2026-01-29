@@ -7,6 +7,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
@@ -35,27 +36,77 @@ class CollectionViewModel(
     // ==================== 初始化 ====================
 
     init {
-        // ✅ 修复：订阅独立的徽章数据流（而不是GameProgress中的空数组）
+        // ✅ 修复：同时订阅 GameProgress 和 Badge，验证数据一致性
         viewModelScope.launch {
-            progressRepository.getAllBadges()
-                .collect { badges ->
-                    // 按场景分组徽章
-                    val badgesByScene = badges.groupBy { it.scene }
+            combine(
+                progressRepository.getGameProgress(),
+                progressRepository.getAllBadges()
+            ) { progress, badges ->
+                // 验证徽章与实际进度的一致性
+                val validatedBadges = validateBadgesWithProgress(badges, progress)
 
-                    // 计算统计信息
-                    val totalBadgeCount = badges.size
-                    val uniqueBadgeCount = badges.distinctBy { it.baseType }.size
-                    val hasCollectedAllBadges = uniqueBadgeCount >= com.cryallen.tigerfire.domain.model.GameProgress.TOTAL_UNIQUE_BADGES
+                // 按场景分组徽章
+                val badgesByScene = validatedBadges.groupBy { it.scene }
 
-                    _state.value = CollectionState(
-                        badges = badges,
-                        badgesByScene = badgesByScene,
-                        totalBadgeCount = totalBadgeCount,
-                        uniqueBadgeCount = uniqueBadgeCount,
-                        hasCollectedAllBadges = hasCollectedAllBadges
-                    )
-                }
+                // 计算统计信息（基于验证后的徽章）
+                val totalBadgeCount = validatedBadges.size
+                val uniqueBadgeCount = validatedBadges.distinctBy { it.baseType }.size
+                val hasCollectedAllBadges = uniqueBadgeCount >= com.cryallen.tigerfire.domain.model.GameProgress.TOTAL_UNIQUE_BADGES
+
+                _state.value = CollectionState(
+                    badges = validatedBadges,
+                    badgesByScene = badgesByScene,
+                    totalBadgeCount = totalBadgeCount,
+                    uniqueBadgeCount = uniqueBadgeCount,
+                    hasCollectedAllBadges = hasCollectedAllBadges
+                )
+            }.collect { /* 持续收集 */ }
         }
+    }
+
+    /**
+     * 验证徽章与实际进度的一致性
+     *
+     * 确保只有真正完成的项目对应的徽章才会被显示
+     *
+     * @param badges 数据库中的所有徽章
+     * @param progress 当前游戏进度
+     * @return 验证后的徽章列表
+     */
+    private fun validateBadgesWithProgress(
+        badges: List<com.cryallen.tigerfire.domain.model.Badge>,
+        progress: com.cryallen.tigerfire.domain.model.GameProgress
+    ): List<com.cryallen.tigerfire.domain.model.Badge> {
+        val validatedBadges = mutableListOf<com.cryallen.tigerfire.domain.model.Badge>()
+
+        for (badge in badges) {
+            val isValid = when (badge.scene) {
+                com.cryallen.tigerfire.domain.model.SceneType.FIRE_STATION -> {
+                    // 检查设备是否在 fireStationCompletedItems 中
+                    badge.baseType in progress.fireStationCompletedItems
+                }
+                com.cryallen.tigerfire.domain.model.SceneType.SCHOOL -> {
+                    // 学校场景完成检查
+                    progress.getSceneStatus(com.cryallen.tigerfire.domain.model.SceneType.SCHOOL) == com.cryallen.tigerfire.domain.model.SceneStatus.COMPLETED
+                }
+                com.cryallen.tigerfire.domain.model.SceneType.FOREST -> {
+                    // 森林场景：检查小羊是否被救援
+                    // baseType 格式: "forest_sheep1" 或 "forest_sheep2"
+                    val sheepIndex = when (badge.baseType) {
+                        "forest_sheep1" -> 1
+                        "forest_sheep2" -> 2
+                        else -> 0
+                    }
+                    sheepIndex > 0 && sheepIndex <= progress.forestRescuedSheep
+                }
+            }
+
+            if (isValid) {
+                validatedBadges.add(badge)
+            }
+        }
+
+        return validatedBadges
     }
 
     // ==================== 事件处理 ====================
