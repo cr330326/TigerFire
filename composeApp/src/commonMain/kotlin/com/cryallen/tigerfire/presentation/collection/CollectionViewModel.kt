@@ -29,7 +29,7 @@ class CollectionViewModel(
 
     // ==================== 副作用通道 ====================
 
-    private val _effect = Channel<CollectionEffect>()
+    private val _effect = Channel<CollectionEffect>(capacity = Channel.UNLIMITED)
     val effect: Flow<CollectionEffect> = _effect.receiveAsFlow()
 
     // ==================== 初始化 ====================

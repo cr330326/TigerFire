@@ -69,6 +69,9 @@ class AndroidAudioManager(
     // 协程作用域
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    // 震动反馈管理器
+    private val hapticManager: HapticManager = HapticManager.getInstance(context)
+
     // ==================== 音效资源映射 ====================
 
     /**
@@ -128,6 +131,8 @@ class AndroidAudioManager(
 
     override fun playClickSound(scene: SceneType?) {
         playSoundEffect(SoundType.CLICK, scene)
+        // 触觉反馈：点击震动
+        hapticManager.click()
     }
 
     override fun playVoice(voicePath: String) {
@@ -156,6 +161,8 @@ class AndroidAudioManager(
 
     override fun playSuccessSound() {
         playSoundEffect(SoundType.SUCCESS)
+        // 触觉反馈：成功震动
+        hapticManager.success()
     }
 
     override fun playHintSound() {
@@ -164,18 +171,26 @@ class AndroidAudioManager(
 
     override fun playDragSound() {
         playSoundEffect(SoundType.DRAG)
+        // 触觉反馈：拖拽震动
+        hapticManager.drag()
     }
 
     override fun playSnapSound() {
         playSoundEffect(SoundType.SNAP)
+        // 触觉反馈：吸附震动
+        hapticManager.snap()
     }
 
     override fun playBadgeSound() {
         playSoundEffect(SoundType.BADGE)
+        // 触觉反馈：徽章获得震动
+        hapticManager.badge()
     }
 
     override fun playAllCompletedSound() {
         playSoundEffect(SoundType.ALL_COMPLETED)
+        // 触觉反馈：全部完成庆祝震动
+        hapticManager.allCompleted()
         // 可以同时播放语音
         playVoice("audio/voices/collection_egg.mp3")
     }

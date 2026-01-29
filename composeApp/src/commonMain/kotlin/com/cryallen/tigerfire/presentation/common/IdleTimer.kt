@@ -112,6 +112,7 @@ class IdleTimer(
      * 停止空闲检测
      *
      * 取消检测协程，不再监听用户活动
+     * 注意：协程会在下一个检查周期自动退出（最多1秒延迟）
      */
     fun stopIdleDetection() {
         isDetectionRunning = false
@@ -184,6 +185,9 @@ class IdleTimer(
 
     /**
      * 启动检测协程
+     *
+     * 注意：由于 KMM 通用代码的限制，无法使用 Job 进行即时取消。
+     * 协程会在 isDetectionRunning 设置为 false 后的下一个检查周期自动退出。
      */
     private fun startDetectionJob() {
         scope.launch {

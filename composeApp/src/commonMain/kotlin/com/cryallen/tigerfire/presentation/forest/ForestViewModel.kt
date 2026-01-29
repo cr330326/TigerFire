@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -65,7 +66,7 @@ class ForestViewModel(
 
     // ==================== 副作用通道 ====================
 
-    private val _effect = Channel<ForestEffect>()
+    private val _effect = Channel<ForestEffect>(capacity = Channel.UNLIMITED)
     val effect: Flow<ForestEffect> = _effect.receiveAsFlow()
 
     // ==================== 辅助功能 ====================
@@ -283,7 +284,7 @@ class ForestViewModel(
                 // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
                 // 使用 "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}" 作为基础类型
                 val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
-                val existingBadges = progressRepository.getAllBadges().first()
+                val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()
                 val nextVariant = existingBadges.calculateNextVariant(sheepBaseType)
 
                 // 添加森林徽章（带变体支持）
@@ -331,7 +332,7 @@ class ForestViewModel(
             } else {
                 // ✅ 关键修复：重复救援同一个小羊，也颁发变体徽章（支持2种变体）
                 val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
-                val existingBadges = progressRepository.getAllBadges().first()
+                val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()
                 val nextVariant = existingBadges.calculateNextVariant(sheepBaseType)
                 val maxVariants = com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType(sheepBaseType)
 

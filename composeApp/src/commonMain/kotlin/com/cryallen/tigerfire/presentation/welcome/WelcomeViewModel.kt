@@ -25,7 +25,7 @@ class WelcomeViewModel(
 
     // ==================== 副作用通道 ====================
 
-    private val _effect = Channel<WelcomeEffect>()
+    private val _effect = Channel<WelcomeEffect>(capacity = Channel.UNLIMITED)
     val effect: Flow<WelcomeEffect> = _effect.receiveAsFlow()
 
     // ==================== 事件处理 ====================

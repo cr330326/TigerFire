@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -47,7 +48,7 @@ class SchoolViewModel(
 
     // ==================== 副作用通道 ====================
 
-    private val _effect = Channel<SchoolEffect>()
+    private val _effect = Channel<SchoolEffect>(capacity = Channel.UNLIMITED)
     val effect: Flow<SchoolEffect> = _effect.receiveAsFlow()
 
     // ==================== 辅助功能 ====================
@@ -232,7 +233,7 @@ class SchoolViewModel(
                 updatedProgress = updatedProgress.updateSceneStatus(SceneType.FOREST, SceneStatus.UNLOCKED)
 
                 // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
-                val existingBadges = progressRepository.getAllBadges().first()
+                val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()
                 val nextVariant = existingBadges.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
 
                 // 添加学校徽章
@@ -267,7 +268,7 @@ class SchoolViewModel(
                 sendEffect(SchoolEffect.PlayVoice(VOICE_PRAISE))
             } else {
                 // ✅ 关键修复：重复观看也颁发变体徽章（支持3种变体）
-                val existingBadges = progressRepository.getAllBadges().first()
+                val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()
                 val nextVariant = existingBadges.calculateNextVariant(SCHOOL_BADGE_BASE_TYPE)
                 val maxVariants = com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType(SCHOOL_BADGE_BASE_TYPE)
 

@@ -37,7 +37,7 @@ class ParentViewModel(
 
     // ==================== 副作用通道 ====================
 
-    private val _effect = Channel<ParentEffect>()
+    private val _effect = Channel<ParentEffect>(capacity = Channel.UNLIMITED)
     val effect: Flow<ParentEffect> = _effect.receiveAsFlow()
 
     // ==================== 初始化 ====================

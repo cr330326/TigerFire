@@ -13,6 +13,7 @@ import com.cryallen.tigerfire.database.TigerFireDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.serialization.encodeToString
@@ -67,7 +68,7 @@ class ProgressRepositoryImpl(
         )
 
         // 同步保存徽章：获取现有徽章，只添加新的
-        val existingBadges = getAllBadges().first()
+        val existingBadges = getAllBadges().firstOrNull() ?: emptyList()
         val existingBadgeIds = existingBadges.map { it.id }.toSet()
         progress.badges.filterNot { it.id in existingBadgeIds }
             .forEach { badge ->

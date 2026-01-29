@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -40,7 +41,7 @@ class FireStationViewModel(
 
     // ==================== 副作用通道 ====================
 
-    private val _effect = Channel<FireStationEffect>()
+    private val _effect = Channel<FireStationEffect>(capacity = Channel.UNLIMITED)
     val effect: Flow<FireStationEffect> = _effect.receiveAsFlow()
 
     // ==================== 辅助功能 ====================
@@ -187,7 +188,7 @@ class FireStationViewModel(
             val isAllCompleted = updatedProgress.isFireStationCompleted()
 
             // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
-            val existingBadges = progressRepository.getAllBadges().first()
+            val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()
             val nextVariant = existingBadges.calculateNextVariant(device.deviceId)
             val deviceBadge = Badge(
                 id = "${device.deviceId}_v${nextVariant}_${com.cryallen.tigerfire.presentation.common.PlatformDateTime.getCurrentTimeMillis()}",
