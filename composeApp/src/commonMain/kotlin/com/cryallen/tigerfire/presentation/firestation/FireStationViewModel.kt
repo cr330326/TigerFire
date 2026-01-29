@@ -94,6 +94,13 @@ class FireStationViewModel(
      */
     fun onEvent(event: FireStationEvent) {
         when (event) {
+            is FireStationEvent.ScreenEntered -> {
+                // 页面进入事件，重新启动空闲计时器
+                idleTimer.stopIdleDetection()
+                idleTimer.startIdleDetection {
+                    onIdleTimeout()
+                }
+            }
             is FireStationEvent.DeviceClicked -> handleDeviceClicked(event.device)
             is FireStationEvent.VideoPlaybackCompleted -> handleVideoCompleted(event.device)
             is FireStationEvent.BackToMapClicked -> handleBackToMap()
@@ -245,7 +252,18 @@ class FireStationViewModel(
      * 无操作 30 秒后触发，显示小火提示
      */
     private fun onIdleTimeout() {
+        // 更新状态显示空闲提示
+        _state.value = _state.value.copy(showIdleHint = true)
         sendEffect(FireStationEffect.ShowIdleHint)
+    }
+
+    /**
+     * 隐藏空闲提示
+     *
+     * 用户点击提示或进行任何操作后调用
+     */
+    fun dismissIdleHint() {
+        _state.value = _state.value.copy(showIdleHint = false)
     }
 
     /**

@@ -8,6 +8,12 @@ package com.cryallen.tigerfire.presentation.forest
  */
 sealed class ForestEvent {
     /**
+     * 页面进入事件
+     * 启动空闲计时器和播放开始语音
+     */
+    data object ScreenEntered : ForestEvent()
+
+    /**
      * 点击小羊（触发直升机自动飞行）
      *
      * @property sheepIndex 小羊索引（0 或 1）

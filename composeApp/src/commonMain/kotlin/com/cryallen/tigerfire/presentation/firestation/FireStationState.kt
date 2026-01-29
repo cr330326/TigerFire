@@ -56,5 +56,10 @@ data class FireStationState(
     /**
      * 是否已完成全部4个设备学习
      */
-    val isAllCompleted: Boolean = false
+    val isAllCompleted: Boolean = false,
+
+    /**
+     * 是否显示空闲提示（无操作30秒后显示）
+     */
+    val showIdleHint: Boolean = false
 )

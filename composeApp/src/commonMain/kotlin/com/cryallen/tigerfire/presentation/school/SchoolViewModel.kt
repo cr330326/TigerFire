@@ -132,8 +132,13 @@ class SchoolViewModel(
      * 启动警报效果（音效 + 红光闪烁）+ 播放语音提示
      */
     private fun handleScreenEntered() {
-        // 报告用户活动，重置空闲计时器
-        idleTimer.reportActivity()
+        // 重新启动空闲计时器
+        println("DEBUG: SchoolViewModel handleScreenEntered - restarting idle timer, current state=${idleTimer.state}")
+        idleTimer.stopIdleDetection()
+        idleTimer.startIdleDetection {
+            println("DEBUG: SchoolViewModel idle timeout triggered!")
+            onIdleTimeout()
+        }
 
         // 检测快速点击
         if (rapidClickGuard.checkClick()) {
@@ -354,7 +359,19 @@ class SchoolViewModel(
      * 无操作 30 秒后触发，显示小火提示
      */
     private fun onIdleTimeout() {
+        // 更新状态显示空闲提示
+        println("DEBUG: SchoolViewModel onIdleTimeout called - setting showIdleHint=true")
+        _state.value = _state.value.copy(showIdleHint = true)
         sendEffect(SchoolEffect.ShowIdleHint)
+    }
+
+    /**
+     * 隐藏空闲提示
+     *
+     * 用户点击提示或进行任何操作后调用
+     */
+    fun dismissIdleHint() {
+        _state.value = _state.value.copy(showIdleHint = false)
     }
 
     // ==================== 辅助方法 ====================

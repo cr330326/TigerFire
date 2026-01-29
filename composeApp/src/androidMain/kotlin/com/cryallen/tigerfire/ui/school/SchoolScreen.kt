@@ -156,12 +156,11 @@ fun SchoolScreen(
                 }
                 is SchoolEffect.PlaySlowDownVoice -> {
                     // 播放"慢一点"语音提示
-                    // TODO: 添加语音资源文件并取消注释
-                    // audioManager.playVoice("voice/slow_down.mp3")
+                    audioManager.playVoice("audio/voices/slow_down.mp3")
                 }
                 is SchoolEffect.ShowIdleHint -> {
                     // 显示空闲提示：小火"需要帮忙吗？"
-                    // TODO: 实现 UI 提示显示逻辑
+                    audioManager.playVoice("audio/voices/hint_idle.mp3")
                 }
             }
         }
@@ -262,6 +261,14 @@ fun SchoolScreen(
             },
             onClose = {
                 viewModel.onEvent(SchoolEvent.CloseBadgeAnimation)
+            }
+        )
+
+        // 空闲提示覆盖层
+        IdleHintOverlay(
+            show = state.showIdleHint,
+            onDismiss = {
+                viewModel.dismissIdleHint()
             }
         )
     }
@@ -1110,6 +1117,120 @@ private fun BadgeAnimationOverlay(
                             text = "▶",
                             fontSize = 20.sp,
                             color = Color(0xFFE63946)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 空闲提示覆盖层
+ *
+ * 当用户30秒无操作时显示小火提示："需要帮忙吗？"
+ *
+ * @param show 是否显示提示
+ * @param onDismiss 关闭提示回调
+ */
+@Composable
+private fun IdleHintOverlay(
+    show: Boolean,
+    onDismiss: () -> Unit
+) {
+    if (!show) return
+
+    // 脉冲动画
+    val infiniteTransition = rememberInfiniteTransition(label = "schoolIdleHintPulse")
+
+    val hintScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "hintScale"
+    )
+
+    val hintAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "hintAlpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            )
+            .background(Color.Black.copy(alpha = 0.3f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .scale(hintScale)
+                .alpha(hintAlpha)
+                .shadow(
+                    elevation = 20.dp,
+                    shape = RoundedCornerShape(32.dp),
+                    spotColor = Color.Black.copy(alpha = 0.3f),
+                    ambientColor = Color.Black.copy(alpha = 0.2f)
+                )
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF457B9D).copy(alpha = 0.95f),  // 学校蓝
+                            Color(0xFF5CA0C3).copy(alpha = 0.95f)
+                        )
+                    ),
+                    RoundedCornerShape(32.dp)
+                )
+                .padding(horizontal = 56.dp, vertical = 40.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // 小火头像
+                Text(
+                    text = "🐯",
+                    fontSize = 80.sp,
+                    modifier = Modifier.scale(hintScale)
+                )
+
+                // 提示文字
+                Text(
+                    text = "需要帮忙吗？",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Text(
+                    text = "点击屏幕任意位置继续",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+
+                // 装饰星星
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.alpha(hintAlpha)
+                ) {
+                    repeat(3) {
+                        Text(
+                            text = "⭐",
+                            fontSize = 24.sp
                         )
                     }
                 }

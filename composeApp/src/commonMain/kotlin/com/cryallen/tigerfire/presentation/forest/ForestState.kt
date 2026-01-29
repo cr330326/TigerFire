@@ -74,5 +74,10 @@ data class ForestState(
     /**
      * 是否已完成全部救援（2只小羊）
      */
-    val isAllCompleted: Boolean = false
+    val isAllCompleted: Boolean = false,
+
+    /**
+     * 是否显示空闲提示（无操作30秒后显示）
+     */
+    val showIdleHint: Boolean = false
 )

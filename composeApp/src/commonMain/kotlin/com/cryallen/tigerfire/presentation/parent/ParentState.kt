@@ -74,7 +74,22 @@ data class ParentState(
      * 待应用的每次使用时长（分钟）
      * 用户选择的时间，验证通过后才会实际应用
      */
-    val pendingSessionTimeLimit: Int? = null
+    val pendingSessionTimeLimit: Int? = null,
+
+    /**
+     * 是否显示设置保存成功提示
+     */
+    val showSettingsSavedHint: Boolean = false,
+
+    /**
+     * 是否显示重置成功提示
+     */
+    val showResetSuccessHint: Boolean = false,
+
+    /**
+     * 是否显示验证失败提示
+     */
+    val showVerificationFailedHint: Boolean = false
 )
 
 /**

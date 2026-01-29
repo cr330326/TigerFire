@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -77,13 +78,13 @@ fun ParentScreen(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is ParentEffect.ShowSettingsSavedHint -> {
-                    // TODO: 显示设置保存成功提示
+                    // 提示由 state.showSettingsSavedHint 控制
                 }
                 is ParentEffect.ShowResetSuccessHint -> {
-                    // TODO: 显示重置成功提示
+                    // 提示由 state.showResetSuccessHint 控制
                 }
                 is ParentEffect.ShowVerificationFailedHint -> {
-                    // TODO: 显示验证失败提示
+                    // 提示由 state.showVerificationFailedHint 控制
                 }
                 is ParentEffect.PlayClickSound -> {
                     audioManager.playClickSound()
@@ -232,6 +233,33 @@ fun ParentScreen(
                 },
                 onDismiss = {
                     viewModel.onEvent(ParentEvent.DismissTimeSettingsDialog)
+                }
+            )
+        }
+
+        // 设置保存成功提示
+        if (state.showSettingsSavedHint) {
+            SettingsSavedHintOverlay(
+                onDismiss = {
+                    viewModel.dismissSettingsSavedHint()
+                }
+            )
+        }
+
+        // 重置成功提示
+        if (state.showResetSuccessHint) {
+            ResetSuccessHintOverlay(
+                onDismiss = {
+                    viewModel.dismissResetSuccessHint()
+                }
+            )
+        }
+
+        // 验证失败提示
+        if (state.showVerificationFailedHint) {
+            VerificationFailedHintOverlay(
+                onDismiss = {
+                    viewModel.dismissVerificationFailedHint()
                 }
             )
         }
@@ -2150,5 +2178,173 @@ private fun formatDuration(milliseconds: Long): String {
         hours > 0 -> "${hours}小时${minutes % 60}分钟"
         minutes > 0 -> "${minutes}分钟"
         else -> "${seconds}秒"
+    }
+}
+
+/**
+ * 设置保存成功提示覆盖层
+ */
+@Composable
+private fun SettingsSavedHintOverlay(
+    onDismiss: () -> Unit
+) {
+    LaunchedEffect(Unit) {
+        delay(2000) // 2秒后自动关闭
+        onDismiss()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    spotColor = Color.Black.copy(alpha = 0.3f),
+                    ambientColor = Color.Black.copy(alpha = 0.2f)
+                )
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(horizontal = 32.dp, vertical = 20.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "✓",
+                    fontSize = 28.sp,
+                    color = Color(0xFF4CAF50) // 绿色
+                )
+                Text(
+                    text = "设置已保存",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 重置成功提示覆盖层
+ */
+@Composable
+private fun ResetSuccessHintOverlay(
+    onDismiss: () -> Unit
+) {
+    LaunchedEffect(Unit) {
+        delay(2000) // 2秒后自动关闭
+        onDismiss()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    spotColor = Color.Black.copy(alpha = 0.3f),
+                    ambientColor = Color.Black.copy(alpha = 0.2f)
+                )
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(horizontal = 32.dp, vertical = 20.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "✓",
+                    fontSize = 28.sp,
+                    color = Color(0xFF4CAF50) // 绿色
+                )
+                Text(
+                    text = "游戏进度已重置",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 验证失败提示覆盖层
+ */
+@Composable
+private fun VerificationFailedHintOverlay(
+    onDismiss: () -> Unit
+) {
+    LaunchedEffect(Unit) {
+        delay(2000) // 2秒后自动关闭
+        onDismiss()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    spotColor = Color.Black.copy(alpha = 0.3f),
+                    ambientColor = Color.Black.copy(alpha = 0.2f)
+                )
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(horizontal = 32.dp, vertical = 20.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "✕",
+                    fontSize = 28.sp,
+                    color = Color(0xFFE63946) // 红色
+                )
+                Text(
+                    text = "答案不正确，请重试",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
+            }
+        }
     }
 }

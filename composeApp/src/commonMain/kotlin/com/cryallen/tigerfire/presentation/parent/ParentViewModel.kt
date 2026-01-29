@@ -145,8 +145,10 @@ class ParentViewModel(
                 val updatedSettings = currentSettings.copy(reminderMinutesBefore = minutes)
                 progressRepository.updateParentSettings(updatedSettings)
             }
+            // 更新状态显示提示
+            _state.value = _state.value.copy(showSettingsSavedHint = true)
+            sendEffect(ParentEffect.ShowSettingsSavedHint)
         }
-        sendEffect(ParentEffect.ShowSettingsSavedHint)
     }
 
     /**
@@ -204,6 +206,7 @@ class ParentViewModel(
                 }
                 ParentAction.CLEAR_STATISTICS -> {
                     // 清除使用统计
+                    _state.value = _state.value.copy(showSettingsSavedHint = true)
                     sendEffect(ParentEffect.ShowSettingsSavedHint)
                 }
                 null -> {
@@ -221,7 +224,8 @@ class ParentViewModel(
         } else {
             // 验证失败，生成新题目
             _state.value = currentState.copy(
-                reverificationQuestion = generateMathQuestion()
+                reverificationQuestion = generateMathQuestion(),
+                showVerificationFailedHint = true
             )
             sendEffect(ParentEffect.ShowVerificationFailedHint)
         }
@@ -306,7 +310,8 @@ class ParentViewModel(
 
             // 关闭对话框
             _state.value = currentState.copy(
-                showTimeSettingsDialog = false
+                showTimeSettingsDialog = false,
+                showSettingsSavedHint = true
             )
 
             // 发送保存成功提示
@@ -330,6 +335,8 @@ class ParentViewModel(
                 )
                 progressRepository.updateParentSettings(updatedSettings)
             }
+            // 更新状态显示提示
+            _state.value = _state.value.copy(showSettingsSavedHint = true)
             // 发送保存成功提示
             sendEffect(ParentEffect.ShowSettingsSavedHint)
         }
@@ -350,12 +357,34 @@ class ParentViewModel(
             _state.value = _state.value.copy(
                 sceneStatuses = initialProgress.sceneStatuses,
                 totalBadgeCount = 0,
-                totalPlayTime = 0L
+                totalPlayTime = 0L,
+                showResetSuccessHint = true
             )
 
             // 发送成功提示
             sendEffect(ParentEffect.ShowResetSuccessHint)
         }
+    }
+
+    /**
+     * 关闭设置保存成功提示
+     */
+    fun dismissSettingsSavedHint() {
+        _state.value = _state.value.copy(showSettingsSavedHint = false)
+    }
+
+    /**
+     * 关闭重置成功提示
+     */
+    fun dismissResetSuccessHint() {
+        _state.value = _state.value.copy(showResetSuccessHint = false)
+    }
+
+    /**
+     * 关闭验证失败提示
+     */
+    fun dismissVerificationFailedHint() {
+        _state.value = _state.value.copy(showVerificationFailedHint = false)
     }
 
     // ==================== 辅助方法 ====================

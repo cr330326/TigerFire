@@ -55,5 +55,10 @@ data class SchoolState(
     /**
      * 当前视频路径（从 ResourcePathProvider 获取）
      */
-    val currentVideoPath: String = ""
+    val currentVideoPath: String = "",
+
+    /**
+     * 是否显示空闲提示（无操作30秒后显示）
+     */
+    val showIdleHint: Boolean = false
 )

@@ -7,6 +7,12 @@ package com.cryallen.tigerfire.presentation.firestation
  */
 sealed class FireStationEvent {
     /**
+     * 页面进入事件
+     * 启动空闲计时器
+     */
+    data object ScreenEntered : FireStationEvent()
+
+    /**
      * 点击设备图标
      *
      * @property device 设备类型
