@@ -27,11 +27,13 @@ import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.io.File
 
 /**
  * 视频播放器组件
  *
+ * ✅ 修复：添加完整的资源释放机制，防止内存泄露
  * 使用 ExoPlayer (Media3) 播放 MP4 视频文件
  * 使用 PlayerView (Media3 官方组件) 进行渲染，确保视频画面正常显示
  *
@@ -61,6 +63,7 @@ fun VideoPlayer(
     var isPlaying by remember { mutableStateOf(autoPlay) }
     var videoSize by remember { mutableStateOf(VideoSize.UNKNOWN) }
 
+    // ✅ 修复：使用可取消的协程来复制资源文件
     suspend fun copyAssetToCache(assetPath: String): File = withContext(Dispatchers.IO) {
         val cacheFile = File(context.cacheDir, assetPath.substringAfterLast("/"))
         try {
@@ -106,7 +109,8 @@ fun VideoPlayer(
         }
     }
 
-    DisposableEffect(lifecycleOwner) {
+    // ✅ 修复：完善生命周期管理，确保资源正确释放
+    DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
@@ -126,7 +130,10 @@ fun VideoPlayer(
         lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
+            // ✅ 修复：确保在页面离开时立即释放所有资源
             lifecycleOwner.lifecycle.removeObserver(observer)
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
             exoPlayer.release()
         }
     }
@@ -161,24 +168,33 @@ fun VideoPlayer(
         modifier = modifier
     )
 
-    // 加载并播放视频
+    // ✅ 修复：添加超时机制和取消支持
     LaunchedEffect(videoPath, exoPlayer) {
-        delay(500)
+        try {
+            withTimeout(5000L) {  // ✅ 添加超时保护
+                delay(500)
 
-        val videoUri = if (videoPath.startsWith("file:///")) {
-            Uri.parse(videoPath)
-        } else if (videoPath.startsWith("/")) {
-            Uri.fromFile(java.io.File(videoPath))
-        } else {
-            val cacheFile = copyAssetToCache(videoPath)
-            Uri.fromFile(cacheFile)
+                val videoUri = if (videoPath.startsWith("file:///")) {
+                    Uri.parse(videoPath)
+                } else if (videoPath.startsWith("/")) {
+                    Uri.fromFile(java.io.File(videoPath))
+                } else {
+                    // ✅ 修复：确保在协程被取消时不会继续执行
+                    val cacheFile = copyAssetToCache(videoPath)
+                    Uri.fromFile(cacheFile)
+                }
+
+                val mediaItem = MediaItem.fromUri(videoUri)
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = autoPlay
+                isPlaying = autoPlay
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            onPlaybackError(Exception("视频加载超时"))
+        } catch (e: Exception) {
+            onPlaybackError(e)
         }
-
-        val mediaItem = MediaItem.fromUri(videoUri)
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = autoPlay
-        isPlaying = autoPlay
     }
 }
 

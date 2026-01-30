@@ -101,4 +101,7 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
+
+    // 内存泄露检测 - LeakCanary (仅在 debug 构建中启用)
+    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.13")
 }

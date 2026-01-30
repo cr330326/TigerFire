@@ -20,6 +20,7 @@ import kotlinx.coroutines.delay
 /**
  * Lottie 动画播放器组件
  *
+ * ✅ 修复：使用实际动画时长而非硬编码的 3000ms
  * 支持从 assets 文件加载 Lottie JSON 动画并播放
  * 提供播放完成回调
  *
@@ -47,6 +48,9 @@ fun LottieAnimationPlayer(
     // 用于跟踪播放进度
     var isPlayingInternal by remember(isPlaying) { mutableStateOf(isPlaying) }
 
+    // ✅ 修复：使用实际动画时长（duration 是 Float 类型，需要转换为 Long）
+    val duration = composition?.duration?.toLong() ?: 3000L
+
     // 渲染动画
     if (composition != null) {
         LottieAnimation(
@@ -57,10 +61,11 @@ fun LottieAnimationPlayer(
         )
     }
 
-    // 监听动画完成
-    LaunchedEffect(isPlayingInternal) {
-        if (isPlayingInternal && iterations != LottieConstants.IterateForever) {
-            delay(3000)
+    // ✅ 修复：使用实际动画时长监听动画完成
+    LaunchedEffect(isPlayingInternal, composition) {
+        if (isPlayingInternal && composition != null && iterations != LottieConstants.IterateForever) {
+            // ✅ 使用实际动画时长，添加 100ms 缓冲确保动画完全播放
+            delay(duration + 100L)
             isPlayingInternal = false
             onAnimationEnd()
         }
@@ -69,6 +74,7 @@ fun LottieAnimationPlayer(
 
 /**
  * 简化版 Lottie 动画播放器
+ * ✅ 修复：使用实际动画时长
  */
 @Composable
 fun LottieAnimationPlayerSimple(
@@ -82,6 +88,9 @@ fun LottieAnimationPlayerSimple(
 
     var isPlaying by remember { mutableStateOf(true) }
 
+    // ✅ 修复：使用实际动画时长（duration 是 Float 类型，需要转换为 Long）
+    val duration = composition?.duration?.toLong() ?: 3000L
+
     if (composition != null) {
         LottieAnimation(
             composition = composition,
@@ -91,10 +100,13 @@ fun LottieAnimationPlayerSimple(
         )
     }
 
-    LaunchedEffect(Unit) {
-        delay(3000)
-        isPlaying = false
-        onAnimationEnd()
+    LaunchedEffect(composition) {
+        if (composition != null) {
+            // ✅ 使用实际动画时长
+            delay(duration + 100L)
+            isPlaying = false
+            onAnimationEnd()
+        }
     }
 }
 

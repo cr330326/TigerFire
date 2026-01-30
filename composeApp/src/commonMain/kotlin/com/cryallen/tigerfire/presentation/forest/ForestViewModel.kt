@@ -309,7 +309,8 @@ class ForestViewModel(
                 progressRepository.addBadge(sheepBadge)
 
                 // 更新本地状态 - 基于当前最新状态，保留第一次更新的结果
-                val newRescuedSheep = _state.value.rescuedSheep + sheepIndex
+                // ✅ 修复：使用 toMutableSet() 添加元素到 Set
+                val newRescuedSheep = _state.value.rescuedSheep.toMutableSet().apply { add(sheepIndex) }
 
                 _state.value = _state.value.copy(
                     rescuedSheep = newRescuedSheep,
