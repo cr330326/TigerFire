@@ -307,10 +307,8 @@ class ForestViewModel(
                     finalProgress = finalProgress.updateSceneStatus(SceneType.FOREST, SceneStatus.COMPLETED)
                 }
 
-                // 保存到数据库（先保存GameProgress）
-                progressRepository.updateGameProgress(finalProgress)
-                // ✅ 单独保存徽章到Badge表
-                progressRepository.addBadge(sheepBadge)
+                // ✅ 使用事务原子性地保存游戏进度和徽章
+                progressRepository.saveProgressWithBadge(finalProgress, sheepBadge)
 
                 // 更新本地状态 - 基于当前最新状态，保留第一次更新的结果
                 // ✅ 修复：使用 toMutableSet() 添加元素到 Set
@@ -350,7 +348,7 @@ class ForestViewModel(
                         variant = nextVariant,
                         earnedAt = PlatformDateTime.getCurrentTimeMillis()
                     )
-                    // ✅ 单独保存徽章到Badge表
+                    // 重复救援只添加徽章，不更新进度
                     progressRepository.addBadge(sheepBadge)
 
                     // 显示获得了新变体徽章

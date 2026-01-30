@@ -249,10 +249,8 @@ class SchoolViewModel(
                     earnedAt = PlatformDateTime.getCurrentTimeMillis()
                 )
 
-                // 保存到数据库（先保存GameProgress）
-                progressRepository.updateGameProgress(updatedProgress)
-                // ✅ 单独保存徽章到Badge表
-                progressRepository.addBadge(schoolBadge)
+                // ✅ 使用事务原子性地保存游戏进度和徽章
+                progressRepository.saveProgressWithBadge(updatedProgress, schoolBadge)
 
                 // 更新本地状态
                 _state.value = currentState.copy(
@@ -285,7 +283,7 @@ class SchoolViewModel(
                         variant = nextVariant,
                         earnedAt = PlatformDateTime.getCurrentTimeMillis()
                     )
-                    // ✅ 单独保存徽章到Badge表
+                    // 重复观看只添加徽章，不更新进度
                     progressRepository.addBadge(schoolBadge)
 
                     // 显示获得了新变体徽章

@@ -3,6 +3,8 @@ package com.cryallen.tigerfire.domain.repository
 import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.GameProgress
 import com.cryallen.tigerfire.domain.model.ParentSettings
+import com.cryallen.tigerfire.domain.model.SceneType
+import com.cryallen.tigerfire.domain.model.SceneStatus
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -40,6 +42,36 @@ interface ProgressRepository {
      * @param progress 新的游戏进度状态
      */
     suspend fun updateGameProgress(progress: GameProgress)
+
+    /**
+     * 原子性地保存游戏进度和徽章
+     *
+     * 使用数据库事务确保两个操作要么全部成功，要么全部失败，
+     * 避免出现进度已保存但徽章未保存的不一致状态
+     *
+     * @param progress 新的游戏进度状态
+     * @param badge 要添加的徽章
+     */
+    suspend fun saveProgressWithBadge(progress: GameProgress, badge: Badge)
+
+    /**
+     * 只更新累计游玩时长
+     *
+     * 避免覆盖其他字段（如fireStationCompletedItems）
+     *
+     * @param additionalTime 要增加的时长（毫秒）
+     */
+    suspend fun addTotalPlayTime(additionalTime: Long)
+
+    /**
+     * 只更新单个场景的状态
+     *
+     * 避免覆盖其他字段
+     *
+     * @param scene 场景类型
+     * @param status 新的状态
+     */
+    suspend fun updateSingleSceneStatus(scene: SceneType, status: SceneStatus)
 
     /**
      * 重置进度到初始状态

@@ -84,6 +84,49 @@ class ProgressRepositoryImpl(
             }
     }
 
+    /**
+     * 只增加累计游玩时长
+     *
+     * 直接在SQL层面做增量更新，避免读-改-写的竞态条件
+     */
+    override suspend fun addTotalPlayTime(additionalTime: Long) {
+        // 先获取当前时长
+        val current = database.gameProgressQueries.selectAllGameProgress()
+            .executeAsOne()
+            .totalPlayTime
+
+        // 增量更新
+        database.gameProgressQueries.updateTotalPlayTime(
+            current + additionalTime
+        )
+
+        println("DEBUG addTotalPlayTime: added $additionalTime ms, new total = ${current + additionalTime}")
+    }
+
+    /**
+     * 只更新单个场景的状态
+     *
+     * 只修改sceneStatuses字段，不影响其他字段
+     */
+    override suspend fun updateSingleSceneStatus(scene: SceneType, status: SceneStatus) {
+        // 获取当前场景状态
+        val currentStatuses = parseSceneStatuses(
+            database.gameProgressQueries.selectAllGameProgress()
+                .executeAsOne()
+                .sceneStatuses
+        ).toMutableMap()
+
+        // 更新指定场景
+        currentStatuses[scene] = status
+
+        // 保存回数据库
+        database.gameProgressQueries.updateSceneStatuses(
+            json.encodeToString(currentStatuses)
+        )
+
+        println("DEBUG updateSingleSceneStatus: scene=$scene, status=$status")
+    }
+
     override suspend fun resetProgress() {
         database.gameProgressQueries.resetProgress()
         database.badgeQueries.deleteAllBadges()
@@ -163,6 +206,48 @@ class ProgressRepositoryImpl(
             variant = badge.variant.toLong(),
             earnedAt = badge.earnedAt
         )
+    }
+
+    /**
+     * 原子性地保存游戏进度和徽章
+     *
+     * 使用数据库事务确保数据一致性
+     */
+    override suspend fun saveProgressWithBadge(progress: GameProgress, badge: Badge) {
+        database.transaction {
+            // 🔍 调试日志：打印即将保存的数据
+            val completedItemsJson = json.encodeToString(progress.fireStationCompletedItems.toList())
+            println("DEBUG saveProgressWithBadge: START TRANSACTION")
+            println("DEBUG saveProgressWithBadge: badge.id = ${badge.id}")
+            println("DEBUG saveProgressWithBadge: badge.baseType = ${badge.baseType}")
+            println("DEBUG saveProgressWithBadge: fireStationCompletedItems = $completedItemsJson")
+            println("DEBUG saveProgressWithBadge: forestRescuedSheep = ${progress.forestRescuedSheep}")
+
+            // 更新游戏进度
+            database.gameProgressQueries.updateSceneStatuses(
+                json.encodeToString(progress.sceneStatuses)
+            )
+            database.gameProgressQueries.updateFireStationCompletedItems(
+                completedItemsJson
+            )
+            database.gameProgressQueries.updateForestRescuedSheep(
+                progress.forestRescuedSheep.toLong()
+            )
+            database.gameProgressQueries.updateTotalPlayTime(
+                progress.totalPlayTime
+            )
+
+            // 添加徽章
+            database.badgeQueries.insertBadge(
+                id = badge.id,
+                scene = badge.scene.name,
+                baseType = badge.baseType,
+                variant = badge.variant.toLong(),
+                earnedAt = badge.earnedAt
+            )
+
+            println("DEBUG saveProgressWithBadge: COMMIT TRANSACTION")
+        }
     }
 
     /**

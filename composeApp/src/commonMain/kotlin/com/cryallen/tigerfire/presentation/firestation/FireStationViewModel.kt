@@ -217,10 +217,8 @@ class FireStationViewModel(
                 updatedProgress
             }
 
-            // 保存到数据库（先保存GameProgress）
-            progressRepository.updateGameProgress(finalProgress)
-            // ✅ 单独保存徽章到Badge表
-            progressRepository.addBadge(deviceBadge)
+            // ✅ 使用事务原子性地保存游戏进度和徽章
+            progressRepository.saveProgressWithBadge(finalProgress, deviceBadge)
 
             // 发送音效副作用
             sendEffect(FireStationEffect.PlayBadgeSound)

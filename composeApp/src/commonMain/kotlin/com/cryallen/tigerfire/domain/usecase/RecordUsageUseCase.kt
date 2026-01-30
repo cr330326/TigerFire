@@ -35,10 +35,8 @@ class RecordUsageUseCase(
             val todayDate = PlatformDateTime.getTodayDate()
             repository.recordUsage(todayDate, durationMillis)
 
-            // 同时更新总游玩时长
-            val currentProgress = repository.getGameProgress().first()
-            val updatedProgress = currentProgress.addPlayTime(durationMillis)
-            repository.updateGameProgress(updatedProgress)
+            // ✅ 修复：只更新总时长字段，避免覆盖fireStationCompletedItems等其他字段
+            repository.addTotalPlayTime(durationMillis)
 
             Result.success(Unit)
         } catch (e: Exception) {

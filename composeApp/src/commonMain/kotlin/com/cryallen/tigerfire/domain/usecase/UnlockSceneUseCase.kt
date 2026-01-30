@@ -47,10 +47,11 @@ class UnlockSceneUseCase(
                 )
             }
 
-            // 更新场景状态为已解锁
-            val updatedProgress = currentProgress.updateSceneStatus(scene, SceneStatus.UNLOCKED)
-            repository.updateGameProgress(updatedProgress)
+            // ✅ 修复：只更新场景状态字段，避免覆盖fireStationCompletedItems等其他字段
+            repository.updateSingleSceneStatus(scene, SceneStatus.UNLOCKED)
 
+            // 重新获取更新后的进度
+            val updatedProgress = repository.getGameProgress().first()
             Result.success(updatedProgress)
         } catch (e: Exception) {
             Result.failure(e)
