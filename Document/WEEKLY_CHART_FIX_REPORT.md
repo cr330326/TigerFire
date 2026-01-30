@@ -68,12 +68,12 @@ for (i in 0..6) {  // 从今天开始，包含今天
 ### 数据记录流程
 1. **场景游玩**: SessionTimer 开始计时
 2. **退出场景**: 调用 `SessionTimer.endSessionAndRecord()`
-3. **记录数据**: 
+3. **记录数据**:
    ```kotlin
    // SessionTimer.kt line 217
    progressRepository.recordUsage(todayDate, finalElapsed)
    ```
-4. **保存到数据库**: 
+4. **保存到数据库**:
    ```kotlin
    // ParentSettings.kt line 73-75
    val currentDuration = dailyUsageStats[date] ?: 0L
@@ -109,10 +109,10 @@ val totalPlayTime = settings.dailyUsageStats.values.sum()
 
 1. **总使用时长显示0** ✅ 已修复
    - 从 `progress.totalPlayTime` 改为 `settings.dailyUsageStats.values.sum()`
-   
+
 2. **重置游戏进度不工作** ✅ 已修复
    - `executeResetProgress()` 现在正确获取并更新 initialSettings
-   
+
 3. **本周使用柱状图无数据** ✅ 已修复（本次）
    - 日期范围从 `i=1..7` 改为 `i=0..6`
 
