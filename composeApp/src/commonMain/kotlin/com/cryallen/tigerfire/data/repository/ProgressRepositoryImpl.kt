@@ -54,11 +54,19 @@ class ProgressRepositoryImpl(
     }
 
     override suspend fun updateGameProgress(progress: GameProgress) {
+        // ✅ 修复：直接更新所有字段，不再做复杂的合并逻辑
+        // 调用者（ViewModel）负责确保传入完整的进度对象
+
+        // 🔍 调试日志：打印即将保存的数据
+        val completedItemsJson = json.encodeToString(progress.fireStationCompletedItems.toList())
+        println("DEBUG updateGameProgress: fireStationCompletedItems = $completedItemsJson")
+        println("DEBUG updateGameProgress: forestRescuedSheep = ${progress.forestRescuedSheep}")
+
         database.gameProgressQueries.updateSceneStatuses(
             json.encodeToString(progress.sceneStatuses)
         )
         database.gameProgressQueries.updateFireStationCompletedItems(
-            json.encodeToString(progress.fireStationCompletedItems.toList())
+            completedItemsJson
         )
         database.gameProgressQueries.updateForestRescuedSheep(
             progress.forestRescuedSheep.toLong()

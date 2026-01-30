@@ -176,8 +176,9 @@ class SchoolViewModel(
             return
         }
 
-        // 报告用户活动
+        // ✅ 修复：报告用户活动并暂停空闲检测（视频播放期间不需要空闲提示）
         idleTimer.reportActivity()
+        idleTimer.pauseIdleDetection()  // ✅ 暂停空闲计时器
 
         // 检测快速点击
         if (rapidClickGuard.checkClick()) {
@@ -212,6 +213,9 @@ class SchoolViewModel(
      */
     private fun handleVideoCompleted() {
         val currentState = _state.value
+
+        // ✅ 修复：视频完成时恢复空闲检测
+        idleTimer.resumeIdleDetection()
 
         // 更新状态：视频播放结束
         _state.value = currentState.copy(
@@ -441,8 +445,9 @@ class SchoolViewModel(
             return
         }
 
-        // 报告用户活动
+        // ✅ 修复：退出视频时恢复空闲检测
         idleTimer.reportActivity()
+        idleTimer.resumeIdleDetection()  // ✅ 恢复空闲计时器
 
         // 更新状态：停止视频，返回播放按钮界面
         _state.value = currentState.copy(

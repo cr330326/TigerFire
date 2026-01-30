@@ -12,12 +12,13 @@ package com.cryallen.tigerfire.domain.model
  * 根据已有的徽章列表，计算指定基础类型的下一个变体编号。
  * 变体编号按顺序循环：0 -> 1 -> 2 -> 3 -> 0 -> ...
  *
- * @param baseType 基础类型（如 "extinguisher"、"hydrant" 等）
- * @return 下一个变体编号（0 ~ MAX_VARIANTS_PER_TYPE - 1）
+ * @param baseType 基础类型（如 "fire_hydrant"、"school"、"forest_sheep1" 等）
+ * @return 下一个变体编号（0 ~ maxVariants - 1）
  */
 fun List<Badge>.calculateNextVariant(baseType: String): Int {
+    val maxVariants = getMaxVariantsForBaseType(baseType)
     val existingCount = this.count { it.baseType == baseType }
-    return existingCount % Badge.MAX_VARIANTS_PER_TYPE
+    return existingCount % maxVariants
 }
 
 /**
@@ -106,17 +107,17 @@ fun List<Badge>.groupByBaseType(): Map<String, List<Badge>> {
  * 检查是否集齐所有基础徽章类型
  *
  * 基础徽章类型：
- * - 消防站：extinguisher, hydrant, ladder, hose（4 种）
+ * - 消防站：fire_hydrant, ladder_truck, fire_extinguisher, water_hose（4 种）
  * - 学校：school（1 种）
- * - 森林：forest_sheep_sheep0, forest_sheep_sheep1（2 种）
+ * - 森林：forest_sheep1, forest_sheep2（2 种）
  *
  * @return 是否集齐全部 7 种基础徽章
  */
 fun List<Badge>.hasAllUniqueBadges(): Boolean {
     val requiredBaseTypes = setOf(
-        "extinguisher", "hydrant", "ladder", "hose",
+        "fire_hydrant", "ladder_truck", "fire_extinguisher", "water_hose",
         "school",
-        "forest_sheep_sheep0", "forest_sheep_sheep1"
+        "forest_sheep1", "forest_sheep2"
     )
     val collectedTypes = this.map { it.baseType }.toSet()
     return requiredBaseTypes.all { it in collectedTypes }
@@ -129,9 +130,9 @@ fun List<Badge>.hasAllUniqueBadges(): Boolean {
  */
 fun List<Badge>.getCollectionProgress(): Float {
     val requiredBaseTypes = setOf(
-        "extinguisher", "hydrant", "ladder", "hose",
+        "fire_hydrant", "ladder_truck", "fire_extinguisher", "water_hose",
         "school",
-        "forest_sheep_sheep0", "forest_sheep_sheep1"
+        "forest_sheep1", "forest_sheep2"
     )
     val collectedTypes = this.map { it.baseType }.toSet()
     val collectedCount = requiredBaseTypes.count { it in collectedTypes }

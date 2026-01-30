@@ -229,8 +229,9 @@ class ForestViewModel(
     private fun handlePlayVideoClicked(sheepIndex: Int) {
         val currentState = _state.value
 
-        // 报告用户活动，重置空闲计时器
+        // ✅ 修复：报告用户活动并暂停空闲检测（视频播放期间不需要空闲提示）
         idleTimer.reportActivity()
+        idleTimer.pauseIdleDetection()  // ✅ 暂停空闲计时器
 
         // 检测快速点击
         if (rapidClickGuard.checkClick()) {
@@ -261,6 +262,9 @@ class ForestViewModel(
     private fun handleRescueVideoCompleted(sheepIndex: Int) {
         val currentState = _state.value
 
+        // ✅ 修复：视频完成时恢复空闲检测
+        idleTimer.resumeIdleDetection()
+
         // 更新状态：结束播放
         _state.value = currentState.copy(
             isPlayingRescueVideo = false,
@@ -282,8 +286,8 @@ class ForestViewModel(
                 var updatedProgress = progress.incrementForestRescuedSheep()
 
                 // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
-                // 使用 "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}" 作为基础类型
-                val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
+                // 使用 "forest_sheep1" 或 "forest_sheep2" 作为基础类型（与 CollectionViewModel 验证逻辑保持一致）
+                val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}${sheepIndex + 1}"
                 val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()
                 val nextVariant = existingBadges.calculateNextVariant(sheepBaseType)
 
@@ -332,7 +336,7 @@ class ForestViewModel(
                 }
             } else {
                 // ✅ 关键修复：重复救援同一个小羊，也颁发变体徽章（支持2种变体）
-                val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}_sheep${sheepIndex}"
+                val sheepBaseType = "${FOREST_BADGE_BASE_TYPE}${sheepIndex + 1}"  // ✅ 修复：与验证逻辑保持一致
                 val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()
                 val nextVariant = existingBadges.calculateNextVariant(sheepBaseType)
                 val maxVariants = com.cryallen.tigerfire.domain.model.getMaxVariantsForBaseType(sheepBaseType)

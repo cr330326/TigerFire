@@ -63,21 +63,21 @@ class FireStationViewModel(
     // ==================== 初始化 ====================
 
     init {
-        // 订阅游戏进度，仅在初始化时加载已完成的设备
+        // ✅ 修复：订阅游戏进度流，持续监听数据库变化
+        // 这样当数据库更新时，UI 状态也会自动更新
         viewModelScope.launch {
-            val repository = progressRepository as? ProgressRepositoryImpl
-            val progress = repository?.getGameProgressNow() ?: progressRepository.getGameProgress().first()
+            progressRepository.getGameProgress().collect { progress ->
+                val completedDevices = progress.fireStationCompletedItems
+                    .mapNotNull { deviceId ->
+                        FireStationDevice.entries.find { it.deviceId == deviceId }
+                    }
+                    .toSet()
 
-            val completedDevices = progress.fireStationCompletedItems
-                .mapNotNull { deviceId ->
-                    FireStationDevice.entries.find { it.deviceId == deviceId }
-                }
-                .toSet()
-
-            _state.value = _state.value.copy(
-                completedDevices = completedDevices,
-                isAllCompleted = completedDevices.size == FireStationDevice.ALL_DEVICES.size
-            )
+                _state.value = _state.value.copy(
+                    completedDevices = completedDevices,
+                    isAllCompleted = completedDevices.size == FireStationDevice.ALL_DEVICES.size
+                )
+            }
         }
 
         // 启动空闲检测（30秒无操作显示小火提示）
@@ -115,8 +115,9 @@ class FireStationViewModel(
      * @param device 设备类型
      */
     private fun handleDeviceClicked(device: FireStationDevice) {
-        // 报告用户活动，重置空闲计时器
+        // ✅ 修复：报告用户活动并暂停空闲检测（视频播放期间不需要空闲提示）
         idleTimer.reportActivity()
+        idleTimer.pauseIdleDetection()  // ✅ 暂停空闲计时器
 
         // 检测快速点击
         if (rapidClickGuard.checkClick()) {
@@ -152,6 +153,9 @@ class FireStationViewModel(
     private fun handleVideoCompleted(device: FireStationDevice) {
         val currentState = _state.value
 
+        // ✅ 修复：视频完成时恢复空闲检测
+        idleTimer.resumeIdleDetection()
+
         viewModelScope.launch {
             // 使用同步方法直接从数据库获取最新进度
             val repository = progressRepository as? ProgressRepositoryImpl
@@ -186,6 +190,12 @@ class FireStationViewModel(
             var updatedProgress = progress.addFireStationCompletedItem(device.deviceId)
             val newCompletedDevices = dbCompletedDevices + device
             val isAllCompleted = updatedProgress.isFireStationCompleted()
+
+            // 🔍 调试日志：打印即将保存的进度数据
+            println("DEBUG handleVideoCompleted: device = ${device.deviceId}")
+            println("DEBUG handleVideoCompleted: progress.fireStationCompletedItems = ${progress.fireStationCompletedItems}")
+            println("DEBUG handleVideoCompleted: updatedProgress.fireStationCompletedItems = ${updatedProgress.fireStationCompletedItems}")
+            println("DEBUG handleVideoCompleted: isAllCompleted = $isAllCompleted")
 
             // ✅ 关键修复：从数据库查询实际徽章来计算变体（而不是使用progress.badges，因为它总是空的）
             val existingBadges = progressRepository.getAllBadges().firstOrNull() ?: emptyList()

@@ -152,9 +152,9 @@ fun GameProgress.getForestProgress(): Pair<Int, Int> {
  * 获取指定基础类型的最大变体数量
  *
  * 根据徽章类型返回其支持的最大变体数量：
- * - 消防站设备（extinguisher, hydrant, ladder, hose）：4 种变体（红/黄/蓝/绿）
+ * - 消防站设备（fire_hydrant, ladder_truck, fire_extinguisher, water_hose）：4 种变体（红/黄/蓝/绿）
  * - 学校（school）：3 种变体（不同边框颜色）
- * - 森林小羊（forest_sheep）：2 种变体（不同小羊表情）
+ * - 森林小羊（forest_sheep1, forest_sheep2）：2 种变体（不同小羊表情）
  * - 其他类型：1 种（无变体）
  *
  * @param baseType 基础类型
@@ -162,9 +162,9 @@ fun GameProgress.getForestProgress(): Pair<Int, Int> {
  */
 fun getMaxVariantsForBaseType(baseType: String): Int {
     return when (baseType) {
-        "extinguisher", "hydrant", "ladder", "hose" -> 4
+        "fire_hydrant", "ladder_truck", "fire_extinguisher", "water_hose" -> 4
         "school" -> 3
-        "forest_sheep" -> 2
+        "forest_sheep1", "forest_sheep2" -> 2
         else -> 1
     }
 }
