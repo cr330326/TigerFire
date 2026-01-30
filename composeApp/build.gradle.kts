@@ -82,6 +82,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources {
@@ -104,4 +105,11 @@ dependencies {
 
     // 内存泄露检测 - LeakCanary (仅在 debug 构建中启用)
     debugImplementation("com.squareup.leakcanary:leakcanary-android:2.13")
+
+    // UI自动化测试依赖
+    androidTestImplementation(libs.androidx.testExt.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.uiautomator)
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
