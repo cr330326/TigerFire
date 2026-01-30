@@ -58,10 +58,13 @@ class ParentViewModel(
                 // 计算今日使用时长
                 val todayPlayTime = settings.dailyUsageStats[today] ?: 0L
 
+                // 计算总使用时长（所有日期的使用时长总和）
+                val totalPlayTime = settings.dailyUsageStats.values.sum()
+
                 _state.value = ParentState(
                     settings = settings,
                     todayPlayTime = todayPlayTime,
-                    totalPlayTime = progress.totalPlayTime,
+                    totalPlayTime = totalPlayTime,
                     sceneStatuses = progress.sceneStatuses,
                     totalBadgeCount = badges.size
                 )
@@ -350,13 +353,16 @@ class ParentViewModel(
             // 使用 resetProgress() 方法，它会清空所有徽章、重置场景状态、清空统计数据
             progressRepository.resetProgress()
 
-            // 获取重置后的进度数据更新本地状态
+            // 获取重置后的进度和设置数据更新本地状态
             val initialProgress = progressRepository.getGameProgress().first()
+            val initialSettings = progressRepository.getParentSettings().first()
 
             // 更新本地状态
             _state.value = _state.value.copy(
+                settings = initialSettings,
                 sceneStatuses = initialProgress.sceneStatuses,
                 totalBadgeCount = 0,
+                todayPlayTime = 0L,
                 totalPlayTime = 0L,
                 showResetSuccessHint = true
             )

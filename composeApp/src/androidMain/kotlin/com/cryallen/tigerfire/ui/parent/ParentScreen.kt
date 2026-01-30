@@ -755,14 +755,14 @@ private fun WeeklyUsageChart(dailyUsageStats: Map<String, Long>) {
 
 /**
  * 获取最近7天的使用时长（分钟）
- * 从后往前：昨天、前天...7天前
+ * 从今天开始往前推7天（包括今天）
  */
 private fun getLast7DaysMinutes(dailyUsageStats: Map<String, Long>): List<Int> {
     val result = mutableListOf<Long>()
     val calendar = java.util.Calendar.getInstance()
 
-    // 从昨天开始往前推7天
-    for (i in 1..7) {
+    // 从今天开始往前推7天（包括今天）
+    for (i in 0..6) {
         calendar.time = java.util.Date()
         calendar.add(java.util.Calendar.DAY_OF_YEAR, -i)
         val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
@@ -771,7 +771,7 @@ private fun getLast7DaysMinutes(dailyUsageStats: Map<String, Long>): List<Int> {
         result.add(milliseconds / 1000 / 60)  // 转换为分钟
     }
 
-    return result.map { it.toInt() }.reversed()  // 反转使周一在前
+    return result.map { it.toInt() }.reversed()  // 反转使最早的在前
 }
 
 /**
