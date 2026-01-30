@@ -67,6 +67,13 @@ class SchoolViewModel(
      */
     private val idleTimer = IdleTimer(viewModelScope)
 
+    /**
+     * 正在保存徽章的标志
+     *
+     * 用于防止学校场景的徽章被并发保存多次
+     */
+    private var isSavingBadge = false
+
     // ==================== 常量定义 ====================
 
     companion object {
@@ -223,10 +230,20 @@ class SchoolViewModel(
         )
 
         viewModelScope.launch {
-            // 获取当前进度
-            val progress = progressRepository.getGameProgress()
-                .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
-                .first()
+            // ✅ 新增：检查并添加保存锁
+            synchronized(this@SchoolViewModel) {
+                if (isSavingBadge) {
+                    // 已经在保存中，跳过
+                    return@launch
+                }
+                isSavingBadge = true
+            }
+
+            try {
+                // 获取当前进度
+                val progress = progressRepository.getGameProgress()
+                    .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
+                    .first()
 
             // 检查是否首次完成
             if (progress.getSceneStatus(SceneType.SCHOOL) != SceneStatus.COMPLETED) {
@@ -298,6 +315,12 @@ class SchoolViewModel(
                 _state.value = currentState.copy(
                     showBadgeAnimation = true
                 )
+            }
+            } finally {
+                // ✅ 新增：保存完成后释放锁
+                synchronized(this@SchoolViewModel) {
+                    isSavingBadge = false
+                }
             }
         }
     }

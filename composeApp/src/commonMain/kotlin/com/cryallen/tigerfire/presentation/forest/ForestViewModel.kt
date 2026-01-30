@@ -85,6 +85,13 @@ class ForestViewModel(
      */
     private val idleTimer = IdleTimer(viewModelScope)
 
+    /**
+     * 正在保存徽章的小羊索引集合
+     *
+     * 用于防止同一小羊的徽章被并发保存多次
+     */
+    private val savingSheepIndices = mutableSetOf<Int>()
+
     // ==================== 初始化 ====================
 
     init {
@@ -171,6 +178,14 @@ class ForestViewModel(
         if (currentState.isHelicopterFlying || currentState.isPlayingRescueVideo) {
             // 正在飞行或播放视频，忽略点击
             return
+        }
+
+        // ✅ 新增：防止在保存徽章期间重复点击
+        synchronized(savingSheepIndices) {
+            if (sheepIndex in savingSheepIndices) {
+                // 正在保存此小羊的徽章，忽略点击
+                return
+            }
         }
 
         // 检测快速点击
@@ -275,13 +290,31 @@ class ForestViewModel(
         )
 
         viewModelScope.launch {
-            // 获取当前进度
-            val progress = progressRepository.getGameProgress()
-                .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
-                .first()
+            // ✅ 新增：检查并添加保存锁
+            val shouldSave = synchronized(savingSheepIndices) {
+                if (sheepIndex in savingSheepIndices) {
+                    // 已经在保存中，跳过
+                    false
+                } else {
+                    // 添加到保存集合
+                    savingSheepIndices.add(sheepIndex)
+                    true
+                }
+            }
 
-            // 检查小羊是否已救援
-            if (!currentState.rescuedSheep.contains(sheepIndex)) {
+            if (!shouldSave) {
+                // 正在保存中，只更新UI状态
+                return@launch
+            }
+
+            try {
+                // 获取当前进度
+                val progress = progressRepository.getGameProgress()
+                    .onStart { emit(com.cryallen.tigerfire.domain.model.GameProgress.initial()) }
+                    .first()
+
+                // 检查小羊是否已救援
+                if (!currentState.rescuedSheep.contains(sheepIndex)) {
                 // 首次救援，更新进度
                 var updatedProgress = progress.incrementForestRescuedSheep()
 
@@ -357,6 +390,12 @@ class ForestViewModel(
                 } else {
                     // 所有变体已收集完成，只播放普通完成音效
                     sendEffect(ForestEffect.PlayCompletedSound)
+                }
+            }
+            } finally {
+                // ✅ 新增：保存完成后移除锁
+                synchronized(savingSheepIndices) {
+                    savingSheepIndices.remove(sheepIndex)
                 }
             }
         }

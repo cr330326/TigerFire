@@ -60,6 +60,13 @@ class FireStationViewModel(
      */
     private val idleTimer = IdleTimer(viewModelScope)
 
+    /**
+     * 正在保存徽章的设备集合
+     *
+     * 用于防止同一设备的徽章被并发保存多次
+     */
+    private val savingDevices = mutableSetOf<FireStationDevice>()
+
     // ==================== 初始化 ====================
 
     init {
@@ -129,6 +136,20 @@ class FireStationViewModel(
 
         val currentState = _state.value
 
+        // ✅ 新增：防止在视频播放或保存期间点击
+        if (currentState.isPlayingVideo) {
+            // 视频播放中，忽略点击
+            return
+        }
+
+        // ✅ 新增：防止在保存徽章期间重复点击
+        synchronized(savingDevices) {
+            if (device in savingDevices) {
+                // 正在保存此设备的徽章，忽略点击
+                return
+            }
+        }
+
         // 无论是否已完成，都可以重新观看视频
         sendEffect(FireStationEffect.PlayClickSound)
 
@@ -157,34 +178,56 @@ class FireStationViewModel(
         idleTimer.resumeIdleDetection()
 
         viewModelScope.launch {
-            // 使用同步方法直接从数据库获取最新进度
-            val repository = progressRepository as? ProgressRepositoryImpl
-            val progress = repository?.getGameProgressNow() ?: progressRepository.getGameProgress().first()
-
-            // 使用数据库状态作为基准，合并所有已完成的设备
-            val dbCompletedDevices = progress.fireStationCompletedItems
-                .mapNotNull { deviceId ->
-                    FireStationDevice.entries.find { it.deviceId == deviceId }
+            // ✅ 新增：检查并添加保存锁
+            val shouldSave = synchronized(savingDevices) {
+                if (device in savingDevices) {
+                    // 已经在保存中，跳过
+                    false
+                } else {
+                    // 添加到保存集合
+                    savingDevices.add(device)
+                    true
                 }
-                .toSet()
+            }
 
-            // 检查设备是否已完成
-            val alreadyCompletedInDB = device.deviceId in progress.fireStationCompletedItems
-            val alreadyCompletedLocal = device in currentState.completedDevices
-            val alreadyCompleted = alreadyCompletedInDB || alreadyCompletedLocal
-
-            if (alreadyCompleted) {
-                // 已完成，只更新UI状态，不保存数据库
+            if (!shouldSave) {
+                // 正在保存中，只更新UI状态
                 _state.value = currentState.copy(
                     isPlayingVideo = false,
-                    currentPlayingDevice = null,
-                    completedDevices = dbCompletedDevices,
-                    isAllCompleted = progress.isFireStationCompleted(),
-                    showBadgeAnimation = false,
-                    earnedBadgeDevice = null
+                    currentPlayingDevice = null
                 )
                 return@launch
             }
+
+            try {
+                // 使用同步方法直接从数据库获取最新进度
+                val repository = progressRepository as? ProgressRepositoryImpl
+                val progress = repository?.getGameProgressNow() ?: progressRepository.getGameProgress().first()
+
+                // 使用数据库状态作为基准，合并所有已完成的设备
+                val dbCompletedDevices = progress.fireStationCompletedItems
+                    .mapNotNull { deviceId ->
+                        FireStationDevice.entries.find { it.deviceId == deviceId }
+                    }
+                    .toSet()
+
+                // 检查设备是否已完成
+                val alreadyCompletedInDB = device.deviceId in progress.fireStationCompletedItems
+                val alreadyCompletedLocal = device in currentState.completedDevices
+                val alreadyCompleted = alreadyCompletedInDB || alreadyCompletedLocal
+
+                if (alreadyCompleted) {
+                    // 已完成，只更新UI状态，不保存数据库
+                    _state.value = currentState.copy(
+                        isPlayingVideo = false,
+                        currentPlayingDevice = null,
+                        completedDevices = dbCompletedDevices,
+                        isAllCompleted = progress.isFireStationCompleted(),
+                        showBadgeAnimation = false,
+                        earnedBadgeDevice = null
+                    )
+                    return@launch
+                }
 
             // 首次完成，更新进度
             var updatedProgress = progress.addFireStationCompletedItem(device.deviceId)
@@ -238,6 +281,12 @@ class FireStationViewModel(
                 showBadgeAnimation = true,
                 earnedBadgeDevice = device
             )
+            } finally {
+                // ✅ 新增：保存完成后移除锁
+                synchronized(savingDevices) {
+                    savingDevices.remove(device)
+                }
+            }
         }
     }
 
