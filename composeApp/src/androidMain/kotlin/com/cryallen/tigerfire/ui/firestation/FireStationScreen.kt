@@ -19,7 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -42,6 +44,9 @@ import com.cryallen.tigerfire.presentation.firestation.FireStationDevice
 import com.cryallen.tigerfire.presentation.firestation.FireStationEffect
 import com.cryallen.tigerfire.presentation.firestation.FireStationEvent
 import com.cryallen.tigerfire.presentation.firestation.FireStationViewModel
+import com.cryallen.tigerfire.ui.components.KidsBackButton
+import com.cryallen.tigerfire.ui.theme.ThemeGradients
+import com.cryallen.tigerfire.ui.theme.createVerticalGradient
 
 /**
  * 消防站场景 Screen
@@ -60,6 +65,9 @@ fun FireStationScreen(
     val context = LocalContext.current
     val audioManager = remember { context.getAudioManager() }
 
+    // 防止重复导航
+    var isNavigating by remember { mutableStateOf(false) }
+
     // 页面进入时触发事件（独立 LaunchedEffect）
     LaunchedEffect(Unit) {
         viewModel.onEvent(FireStationEvent.ScreenEntered)
@@ -72,7 +80,12 @@ fun FireStationScreen(
                 is FireStationEffect.PlayVideo -> {
                     // VideoPlayer 由状态驱动，无需额外处理
                 }
-                is FireStationEffect.NavigateToMap -> onNavigateBack()
+                is FireStationEffect.NavigateToMap -> {
+                    if (!isNavigating) {
+                        isNavigating = true
+                        onNavigateBack()
+                    }
+                }
                 is FireStationEffect.ShowBadgeAnimation -> {
                     // 徽章动画在 showBadgeAnimation 状态中处理
                 }
@@ -100,23 +113,11 @@ fun FireStationScreen(
         }
     }
 
-    // 消防站主题配色 - 更丰富的层次
-    val gradientColors = listOf(
-        Color(0xFFE63946),  // 消防红
-        Color(0xFFF77F00),  // 橙色
-        Color(0xFFFCBF49),  // 暖黄色
-        Color(0xFFEAE2B7)   // 米黄色底部
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.verticalGradient(
-                    colors = gradientColors,
-                    startY = 0f,
-                    endY = Float.POSITIVE_INFINITY
-                )
+                brush = createVerticalGradient(ThemeGradients.FireStation)
             )
     ) {
         // 消防站装饰性背景元素
@@ -125,52 +126,18 @@ fun FireStationScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 顶部工具栏（返回按钮）- 卡通风格
+            // 顶部工具栏（返回按钮）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
-                val returnScale by animateFloatAsState(
-                    targetValue = 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
-                    label = "returnScale"
-                )
-
-                IconButton(
+                KidsBackButton(
                     onClick = {
                         viewModel.onEvent(FireStationEvent.BackToMapClicked)
-                    },
-                    modifier = Modifier
-                        .scale(returnScale)
-                        .size(56.dp)
-                        .shadow(
-                            elevation = 10.dp,
-                            shape = CircleShape,
-                            spotColor = Color.Black.copy(alpha = 0.18f),
-                            ambientColor = Color.Black.copy(alpha = 0.12f)
-                        )
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color.White,
-                                    Color.White.copy(alpha = 0.95f)
-                                )
-                            ),
-                            CircleShape
-                        )
-                ) {
-                    Text(
-                        text = "←",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE63946)
-                    )
-                }
+                    }
+                )
             }
 
             // 中央设备区域

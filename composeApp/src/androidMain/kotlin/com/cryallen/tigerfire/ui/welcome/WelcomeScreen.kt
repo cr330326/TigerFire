@@ -42,6 +42,8 @@ import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.presentation.welcome.WelcomeEffect
 import com.cryallen.tigerfire.presentation.welcome.WelcomeEvent
 import com.cryallen.tigerfire.presentation.welcome.WelcomeViewModel
+import com.cryallen.tigerfire.ui.theme.ThemeGradients
+import com.cryallen.tigerfire.ui.theme.createVerticalGradient
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState

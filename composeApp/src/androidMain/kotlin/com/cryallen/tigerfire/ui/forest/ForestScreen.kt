@@ -71,6 +71,10 @@ import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.presentation.forest.ForestEffect
 import com.cryallen.tigerfire.presentation.forest.ForestEvent
 import com.cryallen.tigerfire.presentation.forest.ForestViewModel
+import com.cryallen.tigerfire.ui.components.CartoonFlame
+import com.cryallen.tigerfire.ui.components.KidsBackButton
+import com.cryallen.tigerfire.ui.theme.ThemeGradients
+import com.cryallen.tigerfire.ui.theme.createVerticalGradient
 import kotlinx.coroutines.launch
 
 /**
@@ -151,8 +155,31 @@ fun ForestScreen(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        // 优化的森林火灾背景
-        ForestFireBackgroundEnhanced()
+        // 使用统一的森林主题渐变背景
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = createVerticalGradient(ThemeGradients.Forest)
+                )
+        )
+
+        // Q版火焰装饰（在屏幕底部）
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 100.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            // 5个火焰emoji装饰
+            repeat(5) { index ->
+                CartoonFlame(
+                    modifier = Modifier.offset(y = (index % 2 * 10).dp),
+                    size = (36 + index * 4).dp
+                )
+            }
+        }
 
         // 游戏区域（小羊和直升机）- 全屏显示
         ForestGameArea(
@@ -182,21 +209,11 @@ fun ForestScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 返回按钮
-                IconButton(
+                KidsBackButton(
                     onClick = {
                         viewModel.onEvent(ForestEvent.BackToMapClicked)
-                    },
-                    modifier = Modifier
-                        .size(56.dp)
-                        .shadow(8.dp, CircleShape)
-                        .background(Color.White, CircleShape)
-                ) {
-                    Text(
-                        text = "←",
-                        fontSize = 28.sp,
-                        color = Color.Black
-                    )
-                }
+                    }
+                )
 
                 // 场景标题
                 Text(

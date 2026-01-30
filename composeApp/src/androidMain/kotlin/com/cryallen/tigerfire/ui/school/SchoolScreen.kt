@@ -60,6 +60,11 @@ import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.presentation.school.SchoolEffect
 import com.cryallen.tigerfire.presentation.school.SchoolEvent
 import com.cryallen.tigerfire.presentation.school.SchoolViewModel
+import com.cryallen.tigerfire.ui.components.CartoonPlayButton
+import com.cryallen.tigerfire.ui.components.KidsBackButton
+import com.cryallen.tigerfire.ui.theme.AlertConfig
+import com.cryallen.tigerfire.ui.theme.ThemeGradients
+import com.cryallen.tigerfire.ui.theme.createVerticalGradient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -96,24 +101,24 @@ fun SchoolScreen(
         // 触发页面进入事件
         viewModel.onEvent(SchoolEvent.ScreenEntered)
 
-        // 启动警报红光闪烁动画（柔和脉冲）
+        // 启动警报红光闪烁动画（使用AlertConfig柔和配置）
         while (true) {
             // 渐入
-            for (i in 0..10) {
+            for (i in 0..AlertConfig.FadeSteps) {
                 if (!state.showAlarmEffect) break
-                alertAlpha = i * 0.025f  // 最大 0.25，避免刺眼
-                delay(50)
+                alertAlpha = i * (AlertConfig.MaxAlpha / AlertConfig.FadeSteps)  // 最大 0.15，更柔和
+                delay(AlertConfig.StepDelay)
             }
             // 渐出
-            for (i in 10 downTo 0) {
+            for (i in AlertConfig.FadeSteps downTo 0) {
                 if (!state.showAlarmEffect) break
-                alertAlpha = i * 0.025f
-                delay(50)
+                alertAlpha = i * (AlertConfig.MaxAlpha / AlertConfig.FadeSteps)
+                delay(AlertConfig.StepDelay)
             }
             if (!state.showAlarmEffect) {
                 alertAlpha = 0f
             }
-            delay(500)  // 停顿
+            delay(AlertConfig.FlashPeriod / 6)  // 停顿时间（周期的1/6）
         }
     }
 
@@ -170,15 +175,7 @@ fun SchoolScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF457B9D),  // 学校蓝
-                        Color(0xFF5CA0C3),  // 天蓝色
-                        Color(0xFF87CEEB)   // 天空蓝
-                    ),
-                    startY = 0f,
-                    endY = Float.POSITIVE_INFINITY
-                )
+                brush = createVerticalGradient(ThemeGradients.School)
             )
     ) {
         // 学校场景装饰性背景元素
@@ -291,24 +288,14 @@ private fun TopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 返回按钮（视频播放中隐藏或禁用）
+        // 返回按钮（视频播放中隐藏）
         if (!isVideoPlaying) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .size(56.dp)  // 增大点击区域
-                    .shadow(6.dp, CircleShape)
-                    .background(Color.White, CircleShape)
-            ) {
-                Text(
-                    text = "←",
-                    fontSize = 28.sp,
-                    color = Color(0xFF457B9D)
-                )
-            }
+            KidsBackButton(
+                onClick = onBackClick
+            )
         } else {
             // 占位，保持布局一致
-            Spacer(modifier = Modifier.size(56.dp))
+            Spacer(modifier = Modifier.size(64.dp))
         }
 
         // 场景标题
@@ -320,12 +307,12 @@ private fun TopBar(
         )
 
         // 占位，保持标题居中
-        Spacer(modifier = Modifier.size(56.dp))
+        Spacer(modifier = Modifier.size(64.dp))
     }
 }
 
 /**
- * 播放按钮区域
+ * 播放按钮区域（使用CartoonPlayButton组件）
  *
  * 超大播放按钮，适合 3-6 岁儿童点击
  */
@@ -333,52 +320,6 @@ private fun TopBar(
 private fun PlayButtonArea(
     onPlayClick: () -> Unit
 ) {
-    // 脉冲动画
-    val infiniteTransition = rememberInfiniteTransition(label = "playButtonPulse")
-
-    // 按钮缩放动画（呼吸效果）
-    val buttonScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "buttonScale"
-    )
-
-    // 外圈光晕扩散动画
-    val haloScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "haloScale"
-    )
-
-    val haloAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "haloAlpha"
-    )
-
-    // 星星闪烁
-    val starAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "starAlpha"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxWidth(),
@@ -390,126 +331,39 @@ private fun PlayButtonArea(
         ) {
             // 场景说明文字
             Text(
-                text = "学校消防安全知识",
-                fontSize = 28.sp,
+                text = "🚨 学校消防安全知识",
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
+                modifier = Modifier.shadow(
+                    elevation = 6.dp,
+                    spotColor = Color.Black.copy(alpha = 0.3f)
+                )
             )
 
             Text(
                 text = "小朋友发现火灾后应该怎么做？",
-                fontSize = 20.sp,
-                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 24.sp,
+                color = Color.White.copy(alpha = 0.95f),
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 超大播放按钮容器
-            Box(
-                modifier = Modifier.size(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // 外圈光晕效果
-                Box(
-                    modifier = Modifier
-                        .size(200.dp)
-                        .scale(haloScale)
-                        .alpha(haloAlpha)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0xFFFF6B6B).copy(alpha = 0.3f),
-                                    Color.Transparent
-                                )
-                            ),
-                            shape = CircleShape
-                        )
-                )
-
-                // 星星装饰
-                listOf(
-                    Offset(-80f, -80f),
-                    Offset(80f, -80f),
-                    Offset(-80f, 80f),
-                    Offset(80f, 80f),
-                    Offset(0f, -95f),
-                    Offset(0f, 95f),
-                    Offset(-95f, 0f),
-                    Offset(95f, 0f)
-                ).forEach { offset ->
-                    Text(
-                        text = "⭐",
-                        fontSize = 24.sp,
-                        modifier = Modifier
-                            .offset(x = offset.x.dp, y = offset.y.dp)
-                            .alpha(starAlpha * 0.5f)
-                    )
-                }
-
-                // 主播放按钮
-                Box(
-                    modifier = Modifier
-                        .size(160.dp)
-                        .scale(buttonScale)
-                        .shadow(
-                            elevation = 16.dp,
-                            spotColor = Color(0xFFFF6B6B).copy(alpha = 0.5f),
-                            shape = CircleShape
-                        )
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFFFF6B6B),  // 红色
-                                    Color(0xFFFF8E53)   // 橙红色
-                                )
-                            ),
-                            shape = CircleShape
-                        )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onPlayClick
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // 播放图标（三角形）
-                    Text(
-                        text = "▶",
-                        fontSize = 64.sp,
-                        color = Color.White,
-                        modifier = Modifier.offset(x = 8.dp)  // 视觉居中
-                    )
-                }
-
-                // 按钮外圈装饰
-                Box(
-                    modifier = Modifier
-                        .size(170.dp)
-                        .scale(buttonScale)
-                        .drawBehind {
-                            drawRoundRect(
-                                color = Color.White.copy(alpha = 0.3f),
-                                style = Stroke(width = 4.dp.toPx()),
-                                cornerRadius = CornerRadius(85.dp.toPx(), 85.dp.toPx())  // 半径 = 尺寸的一半
-                            )
-                        }
-                )
-            }
-
-            // 提示文字
-            Text(
-                text = "👆 点击播放动画",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+            // 使用CartoonPlayButton组件
+            CartoonPlayButton(
+                onClick = onPlayClick,
+                text = "点我观看"
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // 小提示
             Text(
-                text = "和小火一起学习消防安全知识吧！",
-                fontSize = 18.sp,
-                color = Color.White.copy(alpha = 0.8f),
+                text = "👦 和小火一起学习消防安全知识吧！",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.9f),
                 textAlign = TextAlign.Center
             )
         }

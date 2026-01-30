@@ -69,6 +69,8 @@ import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.presentation.map.MapEffect
 import com.cryallen.tigerfire.presentation.map.MapEvent
 import com.cryallen.tigerfire.presentation.map.MapViewModel
+import com.cryallen.tigerfire.ui.theme.ThemeGradients
+import com.cryallen.tigerfire.ui.theme.createVerticalGradient
 
 /**
  * 主地图 Screen
@@ -155,17 +157,8 @@ fun MapScreen(
         }
     }
 
-    // 卡通风格渐变背景 - 天空到草地的过渡
-    val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF87CEEB),  // 天空蓝
-            Color(0xFFB0E0E6),  // 浅蓝
-            Color(0xFF98FB98),  // 嫩绿
-            Color(0xFF90EE90)   // 淡绿
-        ),
-        startY = 0f,
-        endY = Float.POSITIVE_INFINITY
-    )
+    // 卡通风格渐变背景 - 天空到草地的过渡（使用统一主题）
+    val backgroundBrush = createVerticalGradient(ThemeGradients.Map)
 
     // 背景装饰动画
     val infiniteTransition = rememberInfiniteTransition(label = "background_animation")

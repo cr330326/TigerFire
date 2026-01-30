@@ -51,9 +51,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -64,6 +66,9 @@ import com.cryallen.tigerfire.component.getAudioManager
 import com.cryallen.tigerfire.presentation.collection.CollectionEffect
 import com.cryallen.tigerfire.presentation.collection.CollectionEvent
 import com.cryallen.tigerfire.presentation.collection.CollectionViewModel
+import com.cryallen.tigerfire.ui.components.KidsBackButton
+import com.cryallen.tigerfire.ui.theme.ThemeGradients
+import com.cryallen.tigerfire.ui.theme.createVerticalGradient
 
 /**
  * 获取场景类型的显示名称
@@ -105,6 +110,9 @@ fun CollectionScreen(
     val audioManager = remember { context.getAudioManager() }
     var selectedBadge by remember { mutableStateOf<com.cryallen.tigerfire.domain.model.Badge?>(null) }
 
+    // 防止重复导航
+    var isNavigating by remember { mutableStateOf(false) }
+
     // 页面进入动画 - 使用 produceState 确保正确清理
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -136,7 +144,12 @@ fun CollectionScreen(
                     is CollectionEffect.PlayCompletionAnimation -> {
                         audioManager.playSuccessSound()
                     }
-                    is CollectionEffect.NavigateToMap -> onNavigateBack()
+                    is CollectionEffect.NavigateToMap -> {
+                        if (!isNavigating) {
+                            isNavigating = true
+                            onNavigateBack()
+                        }
+                    }
                 }
             }
         } catch (e: CancellationException) {
@@ -145,18 +158,8 @@ fun CollectionScreen(
         }
     }
 
-    // 主背景渐变 - 紫色到金色（高级收藏感）
-    val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF6A5ACD),  // 板岩紫
-            Color(0xFF9370DB),  // 中紫色
-            Color(0xFFDDA0DD),  // 梅红紫
-            Color(0xFFFFD700),  // 金色底部
-            Color(0xFFFFF8DC)   // 亮象牙色
-        ),
-        startY = 0f,
-        endY = Float.POSITIVE_INFINITY
-    )
+    // 主背景渐变 - 彩虹糖果色（儿童友好）
+    val backgroundBrush = createVerticalGradient(ThemeGradients.Collection)
 
     // 闪烁星星动画
     val infiniteTransition = rememberInfiniteTransition(label = "star_animation")
@@ -309,52 +312,11 @@ private fun CollectionTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 返回按钮
-        var buttonScale by remember { mutableStateOf(1f) }
+        KidsBackButton(
+            onClick = onBackClick
+        )
 
-        IconButton(
-            onClick = {
-                buttonScale = 0.9f
-                onBackClick()
-            },
-            modifier = Modifier
-                .scale(buttonScale)
-                .size(56.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    shape = CircleShape,
-                    spotColor = Color(0xFFFFD700).copy(alpha = 0.5f),
-                    ambientColor = Color(0xFFFFD700).copy(alpha = 0.3f)
-                )
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color.White,
-                            Color(0xFFFFF8DC)
-                        )
-                    ),
-                    shape = CircleShape
-                )
-                .drawBehind {
-                    // 金色光环
-                    drawCircle(
-                        color = Color(0xFFFFD700).copy(alpha = 0.3f),
-                        radius = size.minDimension / 2 - 3.dp.toPx(),
-                        style = Stroke(width = 3.dp.toPx())
-                    )
-                }
-        ) {
-            Text(
-                text = "←",
-                fontSize = 28.sp,
-                color = Color(0xFF6A5ACD)
-            )
-        }
-
-        LaunchedEffect(buttonScale) {
-            if (buttonScale != 1f) {
-                kotlinx.coroutines.delay(100)
-                buttonScale = 1f
-            }
+        LaunchedEffect(Unit) {
         }
 
         // 右侧小火头像装饰
@@ -878,7 +840,7 @@ private fun SceneBadgeSection(
 }
 
 /**
- * 徽章卡片 - 已获得
+ * 徽章卡片 - 已获得（增强浮动效果）
  */
 @Composable
 private fun BadgeCard(
@@ -886,9 +848,20 @@ private fun BadgeCard(
     sceneColor: Color,
     onClick: () -> Unit
 ) {
-    // 使用 rememberInfiniteTransition 替代 Animatable + LaunchedEffect
-    // 这样可以自动管理动画生命周期，避免内存泄漏
-    val infiniteTransition = rememberInfiniteTransition(label = "badge_shimmer")
+    // 浮动动画（上下漂浮）
+    val infiniteTransition = rememberInfiniteTransition(label = "badge_float")
+    val floatOffset by infiniteTransition.animateValue(
+        initialValue = 0.dp,
+        targetValue = 12.dp,
+        typeConverter = Dp.VectorConverter,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "float_offset"
+    )
+
+    // 闪光效果
     val shimmerOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1000f,
@@ -897,6 +870,17 @@ private fun BadgeCard(
             repeatMode = RepeatMode.Restart
         ),
         label = "shimmer_offset"
+    )
+
+    // 轻微旋转动画（增强3D感）
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = -2f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "rotation_angle"
     )
 
     // 点击缩放动画
@@ -921,9 +905,13 @@ private fun BadgeCard(
     Column(
         modifier = Modifier
             .width(110.dp)
+            .offset(y = -floatOffset)  // 浮动效果
+            .graphicsLayer {
+                rotationZ = rotationAngle  // 轻微旋转
+            }
             .scale(cardScale)
             .shadow(
-                elevation = 8.dp,
+                elevation = 8.dp + floatOffset / 2,  // 动态阴影（Dp类型计算）
                 shape = RoundedCornerShape(16.dp),
                 spotColor = sceneColor.copy(alpha = 0.5f)
             )
