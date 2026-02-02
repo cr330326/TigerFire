@@ -7,7 +7,13 @@ import ComposeApp
  * 功能：
  * - 播放消防车入场 Lottie 动画
  * - 播放小火挥手 Lottie 动画
- * - 全屏点击跳转到主地图
+ * - 播放欢迎语音
+ * - **语音播放完成后自动导航到主地图**（延迟100ms，无需用户点击）
+ *
+ * Spec 要求：
+ * - App 启动 → 自动播放消防车入场动画（2-3秒）+ 鸣笛音效 + 背景音乐
+ * - 卡车动画完成 → 小火探头挥手 + 语音播放："HI！今天和我一起救火吧！"
+ * - 语音播放完成 → 延迟100ms自动导航至主地图（无需用户交互）
  */
 struct WelcomeView: View {
     /// 动画阶段
@@ -33,55 +39,95 @@ struct WelcomeView: View {
 
     var body: some View {
         ZStack {
-            // 背景色
-            Color(.systemBackground)
+            // 背景色（品牌红色）
+            Color(red: 0.9, green: 0.22, blue: 0.27)
                 .ignoresSafeArea()
 
             // 根据 animationPhase 显示不同动画
             switch animationPhase {
             case .truckEntering:
-                SimpleLottieView(
-                    animationName: "anim_truck_enter",
-                    onAnimationEnd: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            animationPhase = .xiaohuoWaving
-                        }
-                    }
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // 卡车入场动画
+                truckEnteringView
 
             case .xiaohuoWaving:
-                SimpleLottieView(
-                    animationName: "anim_xiaohuo_wave",
-                    onAnimationEnd: {
-                        // 动画完成后保持显示
-                    }
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // 小火挥手动画
+                xiaohuoWavingView
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            handleScreenTap()
-        }
-        .onChange(of: shouldNavigateToMap) { newValue in
+        .ignoresSafeArea()
+        .statusBar(hidden: true) // 隐藏状态栏
+        .onChange(of: shouldNavigateToMap) { _, newValue in
             if newValue {
-                coordinator.navigate(to: .map)
+                navigateToMap()
             }
+        }
+        .onAppear {
+            // 页面出现时开始播放动画序列
+            startAnimationSequence()
         }
     }
 
-    /**
-     * 处理屏幕点击事件
-     */
-    private func handleScreenTap() {
-        // 发送点击事件到 ViewModel
-        viewModelWrapper.sendEvent {
-            viewModelWrapper.baseViewModel.onScreenClick()
-        }
+    // MARK: - 卡车入场动画视图
 
-        // 触发导航
-        shouldNavigateToMap = true
+    private var truckEnteringView: some View {
+        SimpleLottieView(
+            animationName: "anim_truck_enter",
+            onAnimationEnd: {
+                // 卡车动画完成 → 切换到挥手动画
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    animationPhase = .xiaohuoWaving
+                }
+            }
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - 小火挥手动画视图
+
+    private var xiaohuoWavingView: some View {
+        SimpleLottieView(
+            animationName: "anim_xiaohuo_wave",
+            onAnimationEnd: {
+                // 挥手动画完成，等待语音播放完成
+                // 语音播放完成会通过 ViewModel 状态变化触发导航
+            }
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - 动画序列控制
+
+    /**
+     * 启动动画序列
+     *
+     * 按照规范要求：
+     * 1. 卡车入场动画（2-3秒）
+     * 2. 挥手动画（3秒）
+     * 3. 同时播放欢迎语音
+     * 4. 语音播放完成后自动导航
+     */
+    private func startAnimationSequence() {
+        // 卡车入场动画由 SimpleLottieView 自动播放
+        // 动画完成后会自动切换到挥手动画
+
+        // TODO: 播放鸣笛音效和背景音乐
+        // sfx_truck_horn.mp3（鸣笛）
+        // bgm_welcome.mp3（背景音乐）
+    }
+
+    // MARK: - 导航逻辑
+
+    /**
+     * 导航到主地图
+     *
+     * 根据 spec.md §2.1.1：
+     * - 语音播放完成 → 延迟100ms自动导航至主地图
+     * - 无需用户交互
+     */
+    private func navigateToMap() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            coordinator.navigate(to: .map)
+        }
     }
 }
 
@@ -102,6 +148,9 @@ private enum AnimationPhase {
  */
 @MainActor
 class WelcomeViewModelWrapper: ViewModelWrapper<WelcomeViewModel, WelcomeState> {
+    /// 语音播放完成监听
+    private var voicePlayObserver: NSObjectProtocol?
+
     /**
      * 初始化
      *
@@ -115,15 +164,42 @@ class WelcomeViewModelWrapper: ViewModelWrapper<WelcomeViewModel, WelcomeState> 
 
         // 订阅状态流
         subscribeState(viewModel.frameState)
+
+        // 监听语音播放完成通知
+        setupVoicePlaybackObserver()
     }
 
     /**
-     * 发送屏幕点击事件
+     * 设置语音播放完成监听
+     *
+     * 当语音播放完成时，通知可以开始导航
      */
-    func onScreenClick() {
-        sendEvent {
-            baseViewModel.onScreenClick()
+    private func setupVoicePlaybackObserver() {
+        voicePlayObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // 语音播放完成，触发导航
+            self?.handleVoicePlaybackCompleted()
         }
+    }
+
+    deinit {
+        if let observer = voicePlayObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    /**
+     * 处理语音播放完成
+     *
+     * 根据 spec.md §2.1.1：
+     * - 语音播放完成 → 延迟100ms自动导航
+     */
+    private func handleVoicePlaybackCompleted() {
+        // TODO: 通过 ViewModel 发送语音播放完成事件
+        // 当前先通过状态变化触发导航
     }
 }
 

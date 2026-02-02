@@ -12,6 +12,11 @@ import AVFoundation
  * - 短音效使用 AVAudioPlayer，语音也使用 AVAudioPlayer
  * - 支持 AVAudioSessionCategory.ambient 以支持混音
  * - 自动管理播放器池，避免资源泄漏
+ *
+ * 音频资源路径规范（与 Android 共享 assets 目录）：
+ * - 音效文件：assets/audio/sound_effects/{name}.wav
+ * - 语音文件：assets/audio/voices/{name}.mp3
+ * - 背景音乐：assets/audio/music/{name}.mp3
  */
 @objc public class IosAudioPlayer: NSObject {
 
@@ -26,6 +31,9 @@ import AVFoundation
 
     /// 语音播放器池（路径 -> AVAudioPlayer）
     private var voicePlayers: [String: AVAudioPlayer] = [:]
+
+    /// BGM 播放器
+    private var bgmPlayer: AVAudioPlayer?
 
     /// 当前正在播放的警报播放器
     private var alertPlayer: AVAudioPlayer?
@@ -49,13 +57,15 @@ import AVFoundation
         }
     }
 
-    // MARK: - 公开方法
+    // MARK: - 公开方法 - 场景差异化音效
 
     /// 播放点击音效（场景差异化）
     @objc public func playClickSound(sceneValue: Int) {
         let scene = SceneType.fromValue(sceneValue)
         playSoundEffect(.click, scene: scene)
     }
+
+    // MARK: - 公开方法 - 语音播放
 
     /// 播放语音
     @objc public func playVoice(voicePath: String) {
@@ -70,6 +80,33 @@ import AVFoundation
         // 播放完成后释放资源
         player.delegate = self
     }
+
+    /// 播放欢迎语音
+    @objc public func playWelcomeVoice() {
+        playVoice(voicePath: "audio/voices/welcome_greeting.mp3")
+    }
+
+    /// 播放学校警报语音
+    @objc public func playSchoolAlertVoice() {
+        playVoice(voicePath: "audio/voices/school_fire.mp3")
+    }
+
+    /// 播放学校夸奖语音
+    @objc public func playSchoolPraiseVoice() {
+        playVoice(voicePath: "audio/voices/school_praise.mp3")
+    }
+
+    /// 播放森林完成语音
+    @objc public func playForestCompletionVoice() {
+        playVoice(voicePath: "audio/voices/forest_complete.mp3")
+    }
+
+    /// 播放时间到语音
+    @objc public func playTimeUpVoice() {
+        playVoice(voicePath: "audio/voices/time_up.mp3")
+    }
+
+    // MARK: - 公开方法 - 音效播放
 
     /// 播放成功音效
     @objc public func playSuccessSound() {
@@ -99,9 +136,9 @@ import AVFoundation
     /// 播放全部完成音效
     @objc public func playAllCompletedSound() {
         playSoundEffect(.allCompleted)
-        // 可以同时播放语音
-        playVoice("audio/voice/all_completed.mp3")
     }
+
+    // MARK: - 公开方法 - 警报音效
 
     /// 播放警报音效（循环播放）
     @objc public func playAlertSound() {
@@ -122,9 +159,52 @@ import AVFoundation
         alertPlayer = nil
     }
 
+    // MARK: - 公开方法 - BGM 播放
+
+    /// 播放欢迎页 BGM
+    @objc public func playWelcomeBGM() {
+        playBGM("audio/music/fire_engine.mp3")
+    }
+
+    /// 播放主地图 BGM
+    @objc public func playMapBGM() {
+        playBGM("audio/music/fire_engine.mp3")
+    }
+
+    /// 停止 BGM
+    @objc public func stopBGM() {
+        bgmPlayer?.stop()
+        bgmPlayer = nil
+    }
+
+    /// 播放 BGM
+    private func playBGM(_ path: String) {
+        // 停止当前 BGM
+        stopBGM()
+
+        guard let url = Bundle.main.url(forResource: path, withExtension: nil) else {
+            NSLog("BGM file not found: \(path)")
+            return
+        }
+
+        guard let player = try? AVAudioPlayer(contentsOf: url) else {
+            NSLog("Failed to create AVAudioPlayer for BGM: \(path)")
+            return
+        }
+
+        // 循环播放
+        player.numberOfLoops = -1
+
+        bgmPlayer = player
+        player.play()
+    }
+
+    // MARK: - 公开方法 - 资源管理
+
     /// 释放所有音频资源
-    @objc public func release() {
+    @objc public func releaseAudioResources() {
         stopAlertSound()
+        stopBGM()
 
         // 停止并释放所有音效播放器
         soundPlayers.values.forEach { $0.stop() }
@@ -135,44 +215,41 @@ import AVFoundation
         voicePlayers.removeAll()
     }
 
-    // MARK: - 私有方法
+    // MARK: - 私有方法 - 音效资源映射
 
-    /// 音效资源映射
+    /**
+     * 音效资源文件名映射
+     *
+     * 根据 assets/audio/sound_effects/ 目录下的实际文件
+     * 文件格式：.wav
+     */
     private func getSoundFileName(type: SoundType, scene: SceneType? = nil) -> String {
         switch type {
         case .click:
-            switch scene {
-            case .fireStation:
-                return "fire_click"
-            case .school:
-                return "school_click"
-            case .forest:
-                return "forest_click"
-            case .none:
-                return "click"
-            }
+            // 点击音效（所有场景共用）
+            return "audio/sound_effects/click.wav"
         case .success:
-            return "success"
+            return "audio/sound_effects/success.wav"
         case .hint:
-            return "hint"
+            return "audio/sound_effects/hint.wav" // "叮咚"
         case .drag:
-            return "drag"
+            return "audio/sound_effects/helicopter.wav" // 拖拽音效：直升机声音
         case .snap:
-            return "snap"
+            return "audio/sound_effects/water.wav" // 吸附音效：水流声音
         case .badge:
-            return "badge"
+            return "audio/sound_effects/collect.wav" // 徽章获得：收集音效
         case .allCompleted:
-            return "all_completed"
+            return "audio/sound_effects/truck_horn.wav" // 全部完成：卡车喇叭
         case .alert:
-            return "alert"
+            return "audio/sound_effects/alert.wav" // 警报音效
         case .voice:
-            return "voice"
+            return "audio/voices/voice"
         }
     }
 
-    /// 获取音频文件路径
+    /// 获取音频文件路径（保持原有格式兼容）
     private func getSoundFilePath(fileName: String) -> String {
-        return "audio/\(fileName).mp3"
+        return fileName
     }
 
     /// 播放短音效
@@ -187,16 +264,15 @@ import AVFoundation
 
     /// 创建音效播放器（带缓存）
     private func createSoundPlayer(forType type: SoundType, scene: SceneType? = nil) -> AVAudioPlayer? {
-        let fileName = getSoundFileName(type: type, scene: scene)
+        let filePath = getSoundFileName(type: type, scene: scene)
 
         // 检查缓存
-        if let cachedPlayer = soundPlayers[fileName] {
+        if let cachedPlayer = soundPlayers[filePath] {
             cachedPlayer.currentTime = 0  // 重置到开头
             return cachedPlayer
         }
 
-        // 创建新播放器
-        let filePath = getSoundFilePath(fileName: fileName)
+        // 创建新播放器（filePath 已包含完整路径和扩展名）
         guard let url = Bundle.main.url(forResource: filePath, withExtension: nil) else {
             NSLog("Sound file not found: \(filePath)")
             return nil
@@ -208,7 +284,7 @@ import AVFoundation
         }
 
         // 缓存播放器
-        soundPlayers[fileName] = player
+        soundPlayers[filePath] = player
         return player
     }
 
@@ -220,6 +296,8 @@ import AVFoundation
             return existingPlayer
         }
 
+        // path 已包含完整路径和扩展名（如 "audio/voices/welcome_greeting.mp3"）
+        // 直接使用 withExtension: nil 来加载完整路径
         guard let url = Bundle.main.url(forResource: path, withExtension: nil) else {
             NSLog("Voice file not found: \(path)")
             return nil
@@ -283,6 +361,7 @@ public enum SceneType: Int {
         case 0: return .fireStation
         case 1: return .school
         case 2: return .forest
+        case -1: return .none
         default: return nil
         }
     }
@@ -343,5 +422,5 @@ public func stopAlertSoundC() {
 
 @_cdecl("com_cryallen_tigerfire_presentation_audio_IosAudioPlayerHelper_releaseV")
 public func releaseC() {
-    IosAudioPlayer.shared.release()
+    IosAudioPlayer.shared.releaseAudioResources()
 }

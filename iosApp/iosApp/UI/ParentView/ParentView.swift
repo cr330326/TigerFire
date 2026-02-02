@@ -204,56 +204,102 @@ struct ParentView: View {
 
     /**
      * 验证视图
+     *
+     * Spec 要求：
+     * - 数学题验证（一位数加法，结果 ≤ 10）
+     * - 答对 → 显示"再玩 5 分钟"按钮 + "退出"按钮
+     * - 答错 → 提示"答案不正确" + 重新出题
      */
     private var verificationView: some View {
         VStack(spacing: 30) {
             Spacer()
 
-            Text("请回答问题继续")
+            // 图标
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.blue)
+
+            Text("家长验证")
                 .font(.title)
                 .fontWeight(.bold)
 
-            // 数学题
-            VStack(spacing: 20) {
-                Text(viewModelWrapper.state.mathQuestion.question)
-                    .font(.title)
-                    .fontWeight(.semibold)
+            Text("请回答问题继续")
+                .font(.body)
+                .foregroundColor(.secondary)
 
-                // 答案输入
+            // 数学题卡片
+            VStack(spacing: 25) {
+                // 数学题显示
+                Text(viewModelWrapper.state.mathQuestion.question)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+
+                // 答案输入框
                 TextField("输入答案", text: $userAnswer)
                     .textFieldStyle(.roundedBorder)
                     .keyboardType(.numberPad)
-                    .frame(width: 120)
+                    .frame(width: 140)
                     .multilineTextAlignment(.center)
+                    .font(.system(size: 24))
+                    .padding(.vertical, 10)
 
-                // 答案按钮
-                Button("确定") {
+                // 确定按钮
+                Button(action: {
                     if let answer = Int(userAnswer) {
                         viewModelWrapper.verifyAnswer(answer: answer)
                         userAnswer = ""
                     }
+                }) {
+                    Text("确定")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(userAnswer.isEmpty ? Color.gray : Color.blue)
+                        .cornerRadius(12)
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(userAnswer.isEmpty)
+
+                // 取消按钮
+                Button("取消") {
+                    handleCancelVerification()
+                }
+                .foregroundColor(.secondary)
             }
+            .padding(25)
+            .background(Color(.systemGray6))
+            .cornerRadius(20)
 
             Spacer()
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(15)
+    }
+
+    /**
+     * 处理取消验证
+     */
+    private func handleCancelVerification() {
+        viewModelWrapper.cancelVerification()
     }
 
     /**
      * 时间到视图
+     *
+     * Spec 要求：
+     * - 小火弹出语音："时间到啦！我们明天再玩吧！"
+     * - 显示家长验证界面
+     * - 答对 → 显示"再玩 5 分钟"按钮
+     * - 取消 → App 退出到桌面
      */
     private var timeLimitView: some View {
         VStack(spacing: 30) {
             Spacer()
 
+            // 小火头像（TODO: 使用实际图片）
             Image(systemName: "clock.fill")
-                .font(.system(size: 60))
+                .font(.system(size: 70))
                 .foregroundColor(.orange)
+                .shadow(color: .orange.opacity(0.3), radius: 15)
 
             Text("时间到啦！")
                 .font(.title)
@@ -263,15 +309,48 @@ struct ParentView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
 
-            Button("验证继续") {
-                viewModelWrapper.showVerification()
+            VStack(spacing: 15) {
+                Button("验证继续") {
+                    viewModelWrapper.showVerification()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.blue)
+
+                Button("退出") {
+                    handleExit()
+                }
+                .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding()
+    }
+
+    /**
+     * 延长时间视图（验证成功后显示）
+     */
+    private var extendTimeView: some View {
+        VStack(spacing: 30) {
+            Spacer()
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 70))
+                .foregroundColor(.green)
+
+            Text("验证成功！")
+                .font(.title)
+                .fontWeight(.bold)
+
+            Text("可以再玩 5 分钟")
+                .font(.body)
+                .foregroundColor(.secondary)
+
+            Button("继续") {
+                handleExtendTime()
             }
             .buttonStyle(.borderedProminent)
-
-            Button("退出") {
-                handleExit()
-            }
-            .foregroundColor(.secondary)
+            .tint(.green)
 
             Spacer()
         }
@@ -392,6 +471,15 @@ struct ParentView: View {
     }
 
     /**
+     * 处理延长使用时间
+     */
+    private func handleExtendTime() {
+        viewModelWrapper.extendTime()
+        // 延长时间后返回主地图
+        coordinator.goBack()
+    }
+
+    /**
      * 返回地图
      */
     private func goBack() {
@@ -412,6 +500,9 @@ class ParentViewModelWrapper: ViewModelWrapper<ParentViewModel, ParentState> {
         subscribeState(viewModel.frameState)
     }
 
+    /**
+     * 验证答案
+     */
     func verifyAnswer(answer: Int) {
         sendEvent {
             let event = ParentVerifyAnswer(answer: answer)
@@ -419,29 +510,55 @@ class ParentViewModelWrapper: ViewModelWrapper<ParentViewModel, ParentState> {
         }
     }
 
+    /**
+     * 延长使用时间
+     */
     func extendTime() {
         sendEvent {
             baseViewModel.onEvent(event: ParentExtendTime())
         }
     }
 
+    /**
+     * 更新时长设置
+     */
     func updateDuration(minutes: Int) {
         sendEvent {
             baseViewModel.onEvent(event: ParentUpdateDuration(minutes: minutes))
         }
     }
 
+    /**
+     * 重置进度
+     */
     func resetProgress() {
         sendEvent {
             baseViewModel.onEvent(event: ParentResetProgress())
         }
     }
 
+    /**
+     * 显示验证界面
+     */
     func showVerification() {
-        // 触发显示验证界面
-        // TODO: 需要在 ViewModel 中添加对应方法
+        // 通过发送事件触发显示验证界面
+        sendEvent {
+            baseViewModel.onEvent(event: ParentShowVerification())
+        }
     }
 
+    /**
+     * 取消验证
+     */
+    func cancelVerification() {
+        sendEvent {
+            baseViewModel.onEvent(event: ParentCancelVerification())
+        }
+    }
+
+    /**
+     * 返回按钮
+     */
     func onBackPressed() {
         sendEvent {
             baseViewModel.onEvent(event: ParentBackPressed())
@@ -449,9 +566,9 @@ class ParentViewModelWrapper: ViewModelWrapper<ParentViewModel, ParentState> {
     }
 }
 
-// MARK: - 事件辅助类（临时）
+// MARK: - 事件辅助类（临时，应从 Shared 模块导入）
 
-// 临时创建事件类，实际应该在 Shared 模块中
+// 临时创建事件类，实际应该在 Shared 模块中定义
 struct ParentVerifyAnswer {
     let answer: Int
 }
@@ -463,6 +580,10 @@ struct ParentUpdateDuration {
 }
 
 struct ParentResetProgress {}
+
+struct ParentShowVerification {}
+
+struct ParentCancelVerification {}
 
 struct ParentBackPressed {}
 
