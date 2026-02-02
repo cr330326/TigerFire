@@ -92,6 +92,12 @@ class ForestViewModel(
      */
     private val savingSheepIndices = mutableSetOf<Int>()
 
+    /**
+     * 当前飞行的唯一标识（用于防止竞态条件）
+     * 每次开始新的飞行时递增，用于确保 handleHelicopterFlightCompleted 只处理最新的飞行
+     */
+    private var currentFlightId: Int = 0
+
     // ==================== 初始化 ====================
 
     init {
@@ -104,14 +110,15 @@ class ForestViewModel(
                     .onStart { emit(emptyList()) }
             ) { progress, badges ->
                 // 从徽章列表中反推已救援的小羊索引
-                // baseType 格式: "forest_sheep_sheep0" 或 "forest_sheep_sheep1"
-                // 需要从 baseType 中提取小羊索引，而不是使用 variant
+                // baseType 格式: "forest_sheep1" 或 "forest_sheep2"
+                // 需要从 baseType 中提取小羊索引并转换为 0 或 1
                 val rescuedSheep = badges
                     .filter { it.scene == SceneType.FOREST }
                     .mapNotNull { badge ->
-                        // 从 baseType (如 "forest_sheep_sheep0") 中提取小羊索引
+                        // 从 baseType (如 "forest_sheep1") 中提取小羊索引
+                        // 提取的数字是 1 或 2，需要转换为 0 或 1
                         val match = Regex("sheep(\\d)$").find(badge.baseType)
-                        match?.groupValues?.get(1)?.toIntOrNull()
+                        match?.groupValues?.get(1)?.toIntOrNull()?.minus(1)
                     }
                     .toSet()
 
@@ -199,13 +206,18 @@ class ForestViewModel(
         // 获取目标小羊位置
         val (targetX, targetY) = SHEEP_POSITIONS[sheepIndex]
 
+        // 增加飞行ID，用于防止竞态条件
+        currentFlightId++
+        val flightId = currentFlightId
+
         // 更新状态：开始飞行
         _state.value = currentState.copy(
             targetSheepIndex = sheepIndex,
             targetHelicopterX = targetX,
             targetHelicopterY = targetY,
             isHelicopterFlying = true,
-            showPlayVideoButton = false
+            showPlayVideoButton = false,
+            currentFlightId = flightId  // 记录当前飞行ID
         )
 
         // 发送飞行动画音效
@@ -216,10 +228,27 @@ class ForestViewModel(
      * 处理直升机飞行完成事件
      *
      * 当 UI 完成飞行动画后调用
+     * 通过验证 flightId 确保只处理最新的飞行请求，防止竞态条件
      */
     private fun handleHelicopterFlightCompleted() {
         val currentState = _state.value
-        val sheepIndex = currentState.targetSheepIndex ?: return
+
+        // 验证飞行ID，确保只处理最新的飞行
+        // 如果 currentFlightId 为 null，说明这不是一次有效的飞行
+        if (currentState.targetSheepIndex == null || currentState.currentFlightId == null) {
+            return
+        }
+
+        val sheepIndex = currentState.targetSheepIndex
+        val flightId = currentState.currentFlightId
+
+        // 验证这个飞行完成事件是否对应最新的飞行请求
+        // 如果用户在飞行期间点击了另一只小羊，currentFlightId 会递增
+        // 旧的飞行完成事件应该被忽略
+        if (flightId != currentFlightId) {
+            // 这是一个过期的飞行完成事件，忽略它
+            return
+        }
 
         // 更新直升机位置到目标位置
         val targetX = currentState.targetHelicopterX ?: currentState.helicopterX
@@ -229,7 +258,8 @@ class ForestViewModel(
             helicopterX = targetX,
             helicopterY = targetY,
             isHelicopterFlying = false,
-            showPlayVideoButton = true
+            showPlayVideoButton = true,
+            targetSheepIndex = sheepIndex  // 保持目标小羊索引
         )
 
         // 播放点击音效提示用户可以点击播放按钮
@@ -343,9 +373,13 @@ class ForestViewModel(
                 // ✅ 使用事务原子性地保存游戏进度和徽章
                 progressRepository.saveProgressWithBadge(finalProgress, sheepBadge)
 
-                // 更新本地状态 - 基于当前最新状态，保留第一次更新的结果
-                // ✅ 修复：使用 toMutableSet() 添加元素到 Set
-                val newRescuedSheep = _state.value.rescuedSheep.toMutableSet().apply { add(sheepIndex) }
+                // 更新本地状态 - 使用 synchronized 确保 Set 更新的原子性
+                // 防止在快速点击时产生不一致的状态
+                val newRescuedSheep = synchronized(_state) {
+                    _state.value.rescuedSheep.toMutableSet().apply {
+                        add(sheepIndex)
+                    }
+                }
 
                 _state.value = _state.value.copy(
                     rescuedSheep = newRescuedSheep,

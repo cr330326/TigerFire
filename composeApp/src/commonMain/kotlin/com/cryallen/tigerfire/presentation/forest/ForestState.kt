@@ -79,5 +79,11 @@ data class ForestState(
     /**
      * 是否显示空闲提示（无操作30秒后显示）
      */
-    val showIdleHint: Boolean = false
+    val showIdleHint: Boolean = false,
+
+    /**
+     * 当前飞行的唯一标识（用于防止竞态条件）
+     * 每次开始新的飞行时递增，用于确保 handleHelicopterFlightCompleted 只处理最新的飞行
+     */
+    val currentFlightId: Int? = null
 )

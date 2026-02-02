@@ -24,3 +24,6 @@ node_modules/
 
 # 忽略IDE和系统文件
 .vscode/
+
+# 忽略测试报告
+test-reports/
