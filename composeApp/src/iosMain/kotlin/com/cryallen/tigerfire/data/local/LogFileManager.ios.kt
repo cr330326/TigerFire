@@ -1,99 +1,81 @@
 package com.cryallen.tigerfire.data.local
 
 import com.cryallen.tigerfire.domain.model.CrashLogFile
+import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSFileManager
-import platform.Foundation.NSURL
-import platform.Foundation.URLByAppendingPathComponent
-import platform.Foundation.fileExistsAtPath
-import platform.Foundation.attributesOfItemAtPath
-import platform.Foundation.createDirectoryAtURL
-import platform.Foundation.URLsForDirectory
-import platform.Foundation.NSApplicationSupportDirectory
-import platform.Foundation.NSUserDomainMask
-import platform.Foundation.contentsOfDirectoryAtPath
-import platform.Foundation.removeItemAtPath
-import platform.Foundation.NSModificationDate
-import platform.Foundation.NSDate
-import platform.Foundation.timeIntervalSince1970
-import platform.Foundation.NSFileSize
-import platform.Foundation.NSFileModificationDate
-import platform.darwin.os_log
-import platform.darwin.OS_LOG_TYPE_DEFAULT
-import platform.darwin.OS_LOG_TYPE_ERROR
-import platform.Foundation.NSJSONWritingPrettyPrinted
-import platform.Foundation.NSData
-import platform.Foundation.NSString
-import platform.Foundation.NSUTF8StringEncoding
-import platform.Foundation.stringUsingEncoding
-import platform.Foundation.create
+import platform.Foundation.NSTemporaryDirectory
+import platform.posix.fopen
+import platform.posix.fputs
+import platform.posix.fclose
 
 /**
- * iOS 平台的日志文件管理器实现
+ * iOS 平台的日志文件管理器实现（简化版）
  *
- * 日志目录：Application Support/crash_logs/
+ * 日志目录：临时目录/crash_logs/
  */
+@OptIn(ExperimentalForeignApi::class)
 actual class LogFileManager {
+
+    companion object {
+        /** 最大日志文件数量 */
+        const val MAX_LOG_FILES = 20
+
+        /** 单个日志文件最大大小 (10MB) */
+        const val MAX_FILE_SIZE = 10 * 1024 * 1024L
+    }
 
     /**
      * 日志目录路径
-     * iOS: Application Support/crash_logs/
+     * iOS: 临时目录/crash_logs/
      */
     actual val logsDirectory: String
         get() {
+            val tempDir = NSTemporaryDirectory() ?: "/tmp"
+            val logsDir = "$tempDir/crash_logs"
             val fileManager = NSFileManager.defaultManager
-            val urls = fileManager.URLsForDirectory(
-                NSApplicationSupportDirectory,
-                NSUserDomainMask
-            )
-            val appSupportDir = urls.first() as NSURL
-
-            val logsDir = appSupportDir.URLByAppendingPathComponent("crash_logs")
 
             // 创建目录（如果不存在）
-            if (!fileManager.fileExistsAtPath(logsDir!!.path!!)) {
-                fileManager.createDirectoryAtURL(
-                    logsDir,
-                    true,
-                    null,
-                    null
+            if (!fileManager.fileExistsAtPath(logsDir)) {
+                fileManager.createDirectoryAtPath(
+                    path = logsDir,
+                    withIntermediateDirectories = true,
+                    attributes = null,
+                    error = null
                 )
             }
 
-            return logsDir.path!!
+            return logsDir
         }
 
     actual fun writeLog(fileName: String, content: String) {
         try {
-            val fileManager = NSFileManager.defaultManager
             val filePath = "$logsDirectory/$fileName"
+            val fileManager = NSFileManager.defaultManager
 
             // 检查文件大小
             if (fileManager.fileExistsAtPath(filePath)) {
                 val attrs = fileManager.attributesOfItemAtPath(filePath, null)
-                val fileSize = attrs?.objectForKey(NSFileSize) as? Long ?: 0L
+                val fileSize = (attrs as? Map<*, *>)?.get("NSFileSize") as? Long ?: 0L
 
-                if (fileSize > LogFileManager.MAX_FILE_SIZE) {
-                    os_log(OS_LOG_TYPE_DEFAULT, "Log file too large, skipping: $fileName ($fileSize bytes)")
+                if (fileSize > MAX_FILE_SIZE) {
+                    println("Log file too large, skipping: $fileName ($fileSize bytes)")
                     return
                 }
             }
 
-            // 写入文件
-            val success = (content as NSString).writeToFile(
-                filePath,
-                true,
-                NSUTF8StringEncoding
-            )
-
-            if (success) {
-                os_log(OS_LOG_TYPE_DEFAULT, "Log written successfully: $filePath")
+            // 写入文件 - 使用 POSIX 文件 API
+            val file = fopen(filePath, "w")
+            if (file != null) {
+                fputs(content, file)
+                fclose(file)
+                println("Log written successfully: $filePath")
                 // 异步清理旧日志
                 cleanupOldLogs()
             } else {
-                os_log(OS_LOG_TYPE_ERROR, "Failed to write log: $fileName")
+                println("Failed to open file for writing: $fileName")
             }
         } catch (e: Exception) {
-            os_log(OS_LOG_TYPE_ERROR, "Failed to write log: ${e.message}")
+            println("Failed to write log: ${e.message}")
         }
     }
 
@@ -107,29 +89,29 @@ actual class LogFileManager {
             }
 
             val files = fileManager.contentsOfDirectoryAtPath(logsDir, null)
-                ?.sortedByDescending { file ->
+            if (files == null) return
+
+            val sortedFiles = (files as List<*>)
+                .filterIsInstance<String>()
+                .sortedByDescending { file ->
                     val filePath = "$logsDir/$file"
-                    val attrs = fileManager.attributesOfItemAtPath(filePath, null)
-                    val modificationDate = attrs?.objectForKey(NSFileModificationDate) as? NSDate
-                    modificationDate?.timeIntervalSince1970
-                        ?: 0.0
-                } ?: return
+                    val attrs = fileManager.attributesOfItemAtPath(filePath, null) as? Map<*, *>
+                    val modificationDate = attrs?.get("NSFileModificationDate") as? Double
+                    modificationDate ?: 0.0
+                }
 
             // 删除超过 MAX_LOG_FILES 的旧日志
-            val filesToDelete = files.drop(LogFileManager.MAX_LOG_FILES)
+            val filesToDelete = sortedFiles.drop(MAX_LOG_FILES)
             filesToDelete.forEach { fileName ->
                 val filePath = "$logsDir/$fileName"
-                val success = fileManager.removeItemAtPath(filePath, null)
-                if (success) {
-                    os_log(OS_LOG_TYPE_DEFAULT, "Deleted old log: $fileName")
-                }
+                fileManager.removeItemAtPath(filePath, null)
             }
 
             if (filesToDelete.isNotEmpty()) {
-                os_log(OS_LOG_TYPE_DEFAULT, "Cleaned up ${filesToDelete.size} old log(s)")
+                println("Cleaned up ${filesToDelete.size} old log(s)")
             }
         } catch (e: Exception) {
-            os_log(OS_LOG_TYPE_ERROR, "Failed to cleanup logs: ${e.message}")
+            println("Failed to cleanup logs: ${e.message}")
         }
     }
 
@@ -145,19 +127,22 @@ actual class LogFileManager {
             val files = fileManager.contentsOfDirectoryAtPath(logsDir, null)
                 ?: return emptyList()
 
-            files.mapNotNull { fileName ->
-                val filePath = "$logsDir/$fileName"
-                val attrs = fileManager.attributesOfItemAtPath(filePath, null)
+            (files as List<*>)
+                .filterIsInstance<String>()
+                .mapNotNull { fileName ->
+                    val filePath = "$logsDir/$fileName"
+                    val attrs = fileManager.attributesOfItemAtPath(filePath, null) as? Map<*, *>
 
-                CrashLogFile(
-                    fileName = fileName as String,
-                    filePath = filePath,
-                    timestamp = parseTimestampFromFileName(fileName as String),
-                    size = (attrs?.objectForKey(NSFileSize) as? Long) ?: 0L
-                )
-            }.sortedByDescending { it.timestamp }
+                    CrashLogFile(
+                        fileName = fileName,
+                        filePath = filePath,
+                        timestamp = parseTimestampFromFileName(fileName),
+                        size = (attrs?.get("NSFileSize") as? Long) ?: 0L
+                    )
+                }
+                .sortedByDescending { it.timestamp }
         } catch (e: Exception) {
-            os_log(OS_LOG_TYPE_ERROR, "Failed to get log files: ${e.message}")
+            println("Failed to get log files: ${e.message}")
             emptyList()
         }
     }
@@ -173,9 +158,9 @@ actual class LogFileManager {
                 fileManager.removeItemAtPath(filePath, null)
             }
 
-            os_log(OS_LOG_TYPE_DEFAULT, "All logs cleared")
+            println("All logs cleared")
         } catch (e: Exception) {
-            os_log(OS_LOG_TYPE_ERROR, "Failed to clear logs: ${e.message}")
+            println("Failed to clear logs: ${e.message}")
         }
     }
 

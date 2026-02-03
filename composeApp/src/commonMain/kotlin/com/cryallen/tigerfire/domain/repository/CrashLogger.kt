@@ -82,7 +82,6 @@ expect class CrashLogger {
  * 用于在所有平台间共享 CrashLogger 实例
  */
 object CrashLoggerInstance {
-    @Volatile
     private var instance: CrashLogger? = null
 
     /**

@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 森林场景 ViewModel（点击交互版本）
@@ -91,6 +93,11 @@ class ForestViewModel(
      * 用于防止同一小羊的徽章被并发保存多次
      */
     private val savingSheepIndices = mutableSetOf<Int>()
+
+    /**
+     * 互斥锁，用于保护 savingSheepIndices 集合
+     */
+    private val savingMutex = Mutex()
 
     /**
      * 当前飞行的唯一标识（用于防止竞态条件）
@@ -188,11 +195,9 @@ class ForestViewModel(
         }
 
         // ✅ 新增：防止在保存徽章期间重复点击
-        synchronized(savingSheepIndices) {
-            if (sheepIndex in savingSheepIndices) {
-                // 正在保存此小羊的徽章，忽略点击
-                return
-            }
+        if (savingMutex.isLocked && sheepIndex in savingSheepIndices) {
+            // 正在保存此小羊的徽章，忽略点击
+            return
         }
 
         // 检测快速点击
@@ -321,7 +326,7 @@ class ForestViewModel(
 
         viewModelScope.launch {
             // ✅ 新增：检查并添加保存锁
-            val shouldSave = synchronized(savingSheepIndices) {
+            val shouldSave = savingMutex.withLock {
                 if (sheepIndex in savingSheepIndices) {
                     // 已经在保存中，跳过
                     false
@@ -373,12 +378,9 @@ class ForestViewModel(
                 // ✅ 使用事务原子性地保存游戏进度和徽章
                 progressRepository.saveProgressWithBadge(finalProgress, sheepBadge)
 
-                // 更新本地状态 - 使用 synchronized 确保 Set 更新的原子性
-                // 防止在快速点击时产生不一致的状态
-                val newRescuedSheep = synchronized(_state) {
-                    _state.value.rescuedSheep.toMutableSet().apply {
-                        add(sheepIndex)
-                    }
+                // 更新本地状态
+                val newRescuedSheep = _state.value.rescuedSheep.toMutableSet().apply {
+                    add(sheepIndex)
                 }
 
                 _state.value = _state.value.copy(
@@ -428,7 +430,7 @@ class ForestViewModel(
             }
             } finally {
                 // ✅ 新增：保存完成后移除锁
-                synchronized(savingSheepIndices) {
+                savingMutex.withLock {
                     savingSheepIndices.remove(sheepIndex)
                 }
             }

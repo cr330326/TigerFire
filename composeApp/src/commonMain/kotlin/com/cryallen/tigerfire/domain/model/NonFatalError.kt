@@ -3,6 +3,7 @@ package com.cryallen.tigerfire.domain.model
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
+import com.cryallen.tigerfire.domain.utils.TimeUtils
 
 /**
  * 非致命错误模型
@@ -49,7 +50,7 @@ data class NonFatalError(
          */
         fun videoLoadFailed(videoPath: String, reason: String, scene: String? = null): NonFatalError {
             return NonFatalError(
-                timestamp = System.currentTimeMillis(),
+                timestamp = TimeUtils.getCurrentTimeMillis(),
                 errorType = ErrorType.VIDEO_LOAD_FAILED,
                 message = "Failed to load video: $reason",
                 details = mapOf(
@@ -65,7 +66,7 @@ data class NonFatalError(
          */
         fun lottieParseFailed(animationPath: String, reason: String, scene: String? = null): NonFatalError {
             return NonFatalError(
-                timestamp = System.currentTimeMillis(),
+                timestamp = TimeUtils.getCurrentTimeMillis(),
                 errorType = ErrorType.LOTTIE_PARSE_FAILED,
                 message = "Failed to parse Lottie animation: $reason",
                 details = mapOf(
@@ -81,7 +82,7 @@ data class NonFatalError(
          */
         fun memoryWarning(availableMemory: Long, totalMemory: Long, scene: String? = null): NonFatalError {
             return NonFatalError(
-                timestamp = System.currentTimeMillis(),
+                timestamp = TimeUtils.getCurrentTimeMillis(),
                 errorType = ErrorType.MEMORY_WARNING,
                 message = "System memory warning",
                 details = mapOf(
@@ -97,7 +98,7 @@ data class NonFatalError(
          */
         fun resourceNotFound(resourcePath: String, scene: String? = null): NonFatalError {
             return NonFatalError(
-                timestamp = System.currentTimeMillis(),
+                timestamp = TimeUtils.getCurrentTimeMillis(),
                 errorType = ErrorType.RESOURCE_NOT_FOUND,
                 message = "Resource not found: $resourcePath",
                 details = mapOf(
@@ -112,7 +113,7 @@ data class NonFatalError(
          */
         fun audioPlayFailed(audioPath: String, reason: String, scene: String? = null): NonFatalError {
             return NonFatalError(
-                timestamp = System.currentTimeMillis(),
+                timestamp = TimeUtils.getCurrentTimeMillis(),
                 errorType = ErrorType.AUDIO_PLAY_FAILED,
                 message = "Failed to play audio: $reason",
                 details = mapOf(

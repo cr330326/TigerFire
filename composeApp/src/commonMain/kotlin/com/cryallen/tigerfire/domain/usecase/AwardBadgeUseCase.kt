@@ -4,6 +4,7 @@ import com.cryallen.tigerfire.domain.model.Badge
 import com.cryallen.tigerfire.domain.model.GameProgress
 import com.cryallen.tigerfire.domain.model.SceneType
 import com.cryallen.tigerfire.domain.repository.ProgressRepository
+import com.cryallen.tigerfire.domain.utils.TimeUtils
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -50,7 +51,7 @@ class AwardBadgeUseCase(
                 scene = scene,
                 baseType = baseType,
                 variant = variant,
-                earnedAt = System.currentTimeMillis()
+                earnedAt = TimeUtils.getCurrentTimeMillis()
             )
 
             // 保存徽章

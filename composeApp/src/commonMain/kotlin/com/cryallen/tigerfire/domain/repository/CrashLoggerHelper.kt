@@ -1,6 +1,7 @@
 package com.cryallen.tigerfire.domain.repository
 
 import com.cryallen.tigerfire.domain.model.NonFatalError
+import com.cryallen.tigerfire.domain.utils.TimeUtils
 
 /**
  * 崩溃日志辅助类
@@ -113,11 +114,11 @@ object CrashLoggerHelper {
      */
     fun logException(e: Exception, scene: String? = null, context: String? = null) {
         val error = NonFatalError(
-            timestamp = System.currentTimeMillis(),
+            timestamp = TimeUtils.getCurrentTimeMillis(),
             errorType = com.cryallen.tigerfire.domain.model.ErrorType.UNKNOWN,
-            message = "${e.javaClass.simpleName}: ${e.message}",
+            message = "${e::class.simpleName}: ${e.message}",
             details = buildMap {
-                put("exceptionClass", e.javaClass.simpleName)
+                put("exceptionClass", e::class.simpleName ?: "Unknown")
                 put("exceptionMessage", e.message ?: "No message")
                 context?.let { put("context", it) }
             },

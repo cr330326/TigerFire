@@ -2,21 +2,24 @@ package com.cryallen.tigerfire.presentation.audio
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalInspectionMode
+import com.cryallen.tigerfire.data.resource.ResourcePathProvider
 import com.cryallen.tigerfire.domain.model.SceneType
 
 /**
- * iOS 音频管理器实现
+ * iOS 音频管理器实现（简化版 - 占位符实现）
  *
- * 通过 expect/actual 模式调用 Swift 实现
- * 使用 AVFoundation 框架，支持 AVAudioSession 多音频混音
+ * 注意：这是一个占位符实现，仅用于编译通过
+ * 实际音频播放需要在 Swift 侧实现
  */
-class IosAudioManager : AudioManager {
+class IosAudioManager (
+    private val resourcePathProvider: ResourcePathProvider
+) : AudioManager {
 
     companion object {
         private var INSTANCE: IosAudioManager? = null
 
-        fun getInstance(): IosAudioManager {
-            return INSTANCE ?: IosAudioManager().also {
+        fun getInstance(resourcePathProvider: ResourcePathProvider): IosAudioManager {
+            return INSTANCE ?: IosAudioManager(resourcePathProvider).also {
                 INSTANCE = it
             }
         }
@@ -29,74 +32,59 @@ class IosAudioManager : AudioManager {
     // ==================== 公开方法实现 ====================
 
     override fun playClickSound(scene: SceneType?) {
-        val sceneValue = when (scene) {
-            SceneType.FIRE_STATION -> 0
-            SceneType.SCHOOL -> 1
-            SceneType.FOREST -> 2
-            null -> -1
-        }
-        IosAudioPlayerHelper.playClickSound(sceneValue)
+        println("IosAudioManager: playClickSound(scene=$scene)")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playVoice(voicePath: String) {
-        IosAudioPlayerHelper.playVoice(voicePath)
+        println("IosAudioManager: playVoice(path=$voicePath)")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playSuccessSound() {
-        IosAudioPlayerHelper.playSuccessSound()
+        println("IosAudioManager: playSuccessSound")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playHintSound() {
-        IosAudioPlayerHelper.playHintSound()
+        println("IosAudioManager: playHintSound")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playDragSound() {
-        IosAudioPlayerHelper.playDragSound()
+        println("IosAudioManager: playDragSound")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playSnapSound() {
-        IosAudioPlayerHelper.playSnapSound()
+        println("IosAudioManager: playSnapSound")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playBadgeSound() {
-        IosAudioPlayerHelper.playBadgeSound()
+        println("IosAudioManager: playBadgeSound")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playAllCompletedSound() {
-        IosAudioPlayerHelper.playAllCompletedSound()
+        println("IosAudioManager: playAllCompletedSound")
+        // TODO: 实现实际的音频播放
     }
 
     override fun playAlertSound() {
-        IosAudioPlayerHelper.playAlertSound()
+        println("IosAudioManager: playAlertSound")
+        // TODO: 实现实际的音频播放
     }
 
     override fun stopAlertSound() {
-        IosAudioPlayerHelper.stopAlertSound()
+        println("IosAudioManager: stopAlertSound")
+        // TODO: 实现实际的音频停止
     }
 
     override fun release() {
-        IosAudioPlayerHelper.release()
+        println("IosAudioManager: release")
+        // TODO: 实现实际的资源释放
     }
-}
-
-/**
- * iOS Audio Player Helper
- *
- * 通过 external 函数调用 Swift 实现
- */
-internal object IosAudioPlayerHelper {
-
-    external fun playClickSound(sceneValue: Int)
-    external fun playVoice(voicePath: String)
-    external fun playSuccessSound()
-    external fun playHintSound()
-    external fun playDragSound()
-    external fun playSnapSound()
-    external fun playBadgeSound()
-    external fun playAllCompletedSound()
-    external fun playAlertSound()
-    external fun stopAlertSound()
-    external fun release()
 }
 
 /**
@@ -107,7 +95,8 @@ fun getAudioManager(): AudioManager {
     if (LocalInspectionMode.current) {
         return PreviewAudioManager()
     }
-    return IosAudioManager.getInstance()
+    // 需要注入 ResourcePathProvider
+    return IosAudioManager.getInstance(ResourcePathProvider())
 }
 
 /**

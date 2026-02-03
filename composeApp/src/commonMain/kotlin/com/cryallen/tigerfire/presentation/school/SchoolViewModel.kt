@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 学校场景 ViewModel
@@ -66,6 +68,11 @@ class SchoolViewModel(
      * 检测无操作超时，显示小火提示
      */
     private val idleTimer = IdleTimer(viewModelScope)
+
+    /**
+     * 互斥锁，用于保护 isSavingBadge 标志
+     */
+    private val savingMutex = Mutex()
 
     /**
      * 正在保存徽章的标志
@@ -231,12 +238,18 @@ class SchoolViewModel(
 
         viewModelScope.launch {
             // ✅ 新增：检查并添加保存锁
-            synchronized(this@SchoolViewModel) {
+            val shouldSave = savingMutex.withLock {
                 if (isSavingBadge) {
                     // 已经在保存中，跳过
-                    return@launch
+                    false
+                } else {
+                    isSavingBadge = true
+                    true
                 }
-                isSavingBadge = true
+            }
+
+            if (!shouldSave) {
+                return@launch
             }
 
             try {
@@ -318,7 +331,7 @@ class SchoolViewModel(
             }
             } finally {
                 // ✅ 新增：保存完成后释放锁
-                synchronized(this@SchoolViewModel) {
+                savingMutex.withLock {
                     isSavingBadge = false
                 }
             }

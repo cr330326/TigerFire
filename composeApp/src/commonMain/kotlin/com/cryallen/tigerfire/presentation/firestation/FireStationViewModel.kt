@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 消防站场景 ViewModel
@@ -66,6 +68,11 @@ class FireStationViewModel(
      * 用于防止同一设备的徽章被并发保存多次
      */
     private val savingDevices = mutableSetOf<FireStationDevice>()
+
+    /**
+     * 互斥锁，用于保护 savingDevices 集合
+     */
+    private val savingMutex = Mutex()
 
     // ==================== 初始化 ====================
 
@@ -143,11 +150,9 @@ class FireStationViewModel(
         }
 
         // ✅ 新增：防止在保存徽章期间重复点击
-        synchronized(savingDevices) {
-            if (device in savingDevices) {
-                // 正在保存此设备的徽章，忽略点击
-                return
-            }
+        if (savingMutex.isLocked && device in savingDevices) {
+            // 正在保存此设备的徽章，忽略点击
+            return
         }
 
         // 无论是否已完成，都可以重新观看视频
@@ -179,7 +184,7 @@ class FireStationViewModel(
 
         viewModelScope.launch {
             // ✅ 新增：检查并添加保存锁
-            val shouldSave = synchronized(savingDevices) {
+            val shouldSave = savingMutex.withLock {
                 if (device in savingDevices) {
                     // 已经在保存中，跳过
                     false
@@ -283,7 +288,7 @@ class FireStationViewModel(
             )
             } finally {
                 // ✅ 新增：保存完成后移除锁
-                synchronized(savingDevices) {
+                savingMutex.withLock {
                     savingDevices.remove(device)
                 }
             }
