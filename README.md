@@ -4,6 +4,22 @@
 
 专为 **3-6 岁儿童**设计的互动式消防安全教育应用，通过"**小火**"（Little Fire）老虎消防员 IP 角色，引导儿童学习消防知识和应急技能。
 
+---
+
+## 目录
+
+- [项目简介](#项目简介)
+- [快速开始](#快速开始)
+- [场景说明](#场景说明)
+- [核心功能](#核心功能)
+- [开发指南](#开发指南)
+- [性能指标](#性能指标)
+- [项目截图](#项目截图)
+- [贡献指南](#贡献指南)
+- [许可证](#许可证)
+
+---
+
 ## 项目简介
 
 TigerFire 是一个使用 **Kotlin Multiplatform Mobile (KMM)** 技术开发的跨平台教育应用，实现了 Android 和 iOS 平台之间的业务逻辑共享，同时保持各自原生的 UI 体验。
@@ -109,30 +125,87 @@ TigerFire/                              # KMM 项目根目录
 
 ### 环境要求
 
-- **Kotlin**: 1.9.x
-- **Android Studio**: Hedgehog (2023.1.3) 或更高版本
-- **Xcode**: 14.0 或更高版本（iOS 开发）
-- **Gradle**: 8.0+
+| 组件 | 版本要求 | 说明 |
+|------|----------|------|
+| **JDK** | 17 或更高 | 推荐使用 JDK 17 LTS |
+| **Kotlin** | 1.9.x | 与 Gradle 版本兼容 |
+| **Android Studio** | Hedgehog (2023.1.3) 或更高 | 推荐 Iguana (2024.1.1) |
+| **Xcode** | 14.0 或更高 | iOS 开发必需 |
+| **Gradle** | 8.0+ | 项目已配置 Gradle Wrapper |
+| **Android SDK** | API 24+ (Android 7.0) | 最低支持版本 |
+
+#### 验证环境
+
+```bash
+# 检查 JDK 版本
+java -version
+
+# 检查 Kotlin 版本
+kotlinc -version
+
+# 检查 Android SDK
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list
+
+# 检查 Xcode 版本（macOS）
+xcodebuild -version
+```
 
 ### 构建 Android 应用
 
 ```bash
-# 构建 Debug APK
-./gradlew :composeApp:assembleDebug
+# 清理并构建 Debug APK
+./gradlew clean :composeApp:assembleDebug
 
-# 安装到设备
+# 安装到已连接设备
 ./gradlew :composeApp:installDebug
+
+# 查看可用构建变体
+./gradlew :composeApp:tasks --all | grep assemble
+
+# 构建 Release APK（需要签名配置）
+./gradlew :composeApp:assembleRelease
 ```
 
 ### 构建 iOS 应用
 
 ```bash
-# 使用 Xcode 打开 iOS 项目
-open iosApp/iosApp
+# 方式一：使用 Xcode 打开（推荐）
+open iosApp/iosApp.xcodeproj
 
-# 或使用命令行构建
-cd iosApp/iosApp
-xcodebuild -scheme TigerFire -configuration Debug build
+# 方式二：使用命令行构建
+# 先确保已配置好签名和 Team
+cd iosApp
+xcodebuild -project iosApp.xcodeproj \
+  -scheme iosApp \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  build
+
+# 安装到真机（需要连接设备并配置签名）
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme iosApp \
+  -configuration Release \
+  -destination 'platform=iOS,name=你的设备名称' \
+  install
+```
+
+### 运行测试
+
+```bash
+# 运行 Android 单元测试
+./gradlew :composeApp:testDebugUnitTest
+
+# 运行特定测试类
+./gradlew :composeApp:testDebugUnitTest --tests "com.cryallen.tigerfire.domain.model.GameProgressTest"
+
+# 运行 Android 连接测试（需要连接设备）
+./gradlew :composeApp:connectedDebugAndroidTest
+
+# 运行 iOS 测试
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme iosApp \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  test
 ```
 
 ## 场景说明
@@ -384,6 +457,13 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 | **内存泄漏** | 零容忍 | 单场景内存占用应稳定，长时间运行无持续增长 |
 | **恢复能力** | 自动恢复 | 崩溃后重启应能恢复到最后正常状态 |
 
+### 兼容性要求
+
+| 平台 | 最低版本 | 推荐版本 |
+|------|----------|----------|
+| Android | API 24 (Android 7.0) | API 30+ (Android 11+) |
+| iOS | iOS 14.0 | iOS 16+ |
+
 ### 崩溃日志系统
 
 应用内置崩溃日志记录功能：
@@ -414,7 +494,7 @@ fun calculateNextVariant(badges: List<Badge>, baseType: String): Int {
 | 森林主色 | 绿 | `#2A9D8F` |
 | 强调色 | 黄 | `#F4A261` |
 
-## 常见问题
+## 常见问题 (FAQ)
 
 ### Q: 为什么选择 KMM 而不是 Flutter/React Native？
 
@@ -474,14 +554,133 @@ A: 3-6 岁儿童注意力分散，中断后可能忘记前文。从头播放确�
 - 平台特定代码（Android/iOS）仅负责 UI 渲染和平台适配
 - 优先级顺序：`constitution.md` > `CLAUDE.md` > `specs/` > 用户指令
 
+## 项目截图
+
+> 注：以下截图来自设计稿，实际界面可能略有不同
+
+### 主地图与场景导航
+```
+┌─────────────────────────────────────┐
+│  ┌─────┐                    ⚙️     │
+│  │ 😺  │   我的收藏                │
+│  └─────┘      ┌───┐               │
+│              🚒   🏫   🌲          │
+│              消防站  学校   森林    │
+│                                  │
+└─────────────────────────────────────┘
+```
+
+### 消防站场景
+```
+┌─────────────────────────────────────┐
+│  🧯          🚒          🪜        │
+│  灭火器    消防栓       云梯       │
+│                                  │
+│          💦                       │
+│         水枪                     │
+│                                  │
+│  ┌─────────────────────────────┐│
+│  │   点击设备观看教学视频       ││
+│  └─────────────────────────────┘│
+└─────────────────────────────────────┘
+```
+
+### 徽章收藏页面
+```
+┌─────────────────────────────────────┐
+│  我的收藏                    🏠   │
+│                                  │
+│  消防站 🚒  [🎖️🎖️🎖️🎖️...]       │
+│  学校   🏫  [🎖️...]             │
+│  森林   🌲  [🎖️🎖️...]          │
+│                                  │
+│  ──────────────── 未获得 ────────  │
+│  [░░] [░░] [░░] [░░]            │
+│                                  │
+└─────────────────────────────────────┘
+```
+
+## 贡献指南
+
+我们欢迎社区贡献！请遵循以下流程：
+
+### 提交 Issue
+
+- 使用清晰的标题描述问题
+- 提供复现步骤和环境信息
+- 如果是功能请求，请说明使用场景
+
+### 提交 Pull Request
+
+1. Fork 仓库并创建功能分支
+2. 遵循现有的代码风格和架构
+3. 确保所有测试通过
+4. 更新相关文档
+5. 提交 PR 并描述改动内容
+
+### 代码规范
+
+- **Kotlin**: 遵循 [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-conventions.html)
+- **Swift**: 遵循 [Swift Style Guide](https://google.github.io/swift/)
+- **提交信息**: 使用 [Conventional Commits](https://www.conventionalcommits.org/)
+
+## 相关资源
+
+### 官方链接
+
+| 资源 | 链接 | 说明 |
+|------|------|------|
+| KMM 官方文档 | https://kotlinlang.org/docs/multiplatform.html | Kotlin Multiplatform 官方指南 |
+| Jetpack Compose | https://developer.android.com/jetpack/compose | Android UI 开发文档 |
+| SwiftUI | https://developer.apple.com/documentation/swiftui | iOS UI 开发文档 |
+| SQLDelight | https://sqldelight.github.io/sqldelight/ | 类型安全的 SQL 数据库 |
+
+### 推荐工具
+
+| 工具 | 用途 |
+|------|------|
+| Android Studio Iguana+ | Android 开发 IDE |
+| Xcode 14+ | iOS/macOS 开发 IDE |
+| Figma | UI 设计和原型 |
+| LottieFiles | 动画预览和下载 |
+
 ## 许可证
 
-本项目为教育用途开发。
+```
+TigerFire (老虎消防车) - 学前儿童消防安全教育应用
+
+Copyright (c) 2024 TigerFire Contributors
+
+本项目为教育用途开发，遵循以下原则：
+1. 允许个人学习、研究和非商业用途使用
+2. 禁止将本应用用于任何商业目的
+3. 禁止基于本应用开发类似功能的商业产品
+4. 修改和分发时必须保留版权声明
+
+本软件按"原样"提供，不附带任何明示或暗示的保证。
+```
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request。
+我们欢迎各种形式的贡献！
+
+### 如何贡献
+
+1. **报告问题**：发现 Bug 或有功能建议？请提交 [Issue](../../issues)
+2. **提交代码**：Fork 仓库，创建功能分支，提交 Pull Request
+3. **完善文档**：帮助改进文档、翻译或添加示例
+4. **分享项目**：推荐给朋友，给项目点 Star ⭐
+
+### 贡献者
+
+感谢所有为 TigerFire 做出贡献的开发者！
 
 ---
 
-**TigerFire** - 让消防安全教育变得有趣！
+<div align="center">
+
+**TigerFire** - 让消防安全教育变得有趣！🔥🐯
+
+[⬆ 回到顶部](#目录)
+
+</div>
