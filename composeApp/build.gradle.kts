@@ -1,6 +1,8 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import app.cash.sqldelight.gradle.SqlDelightExtension
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -83,20 +85,84 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 只打包需要的语言资源 (目前只需要中文)
+        resourceConfigurations += setOf("zh", "zh-rCN")
+
+        // 启用矢量图支持
+        vectorDrawables.useSupportLibrary = true
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
+
+    // 签名配置
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val useKeystore = keystorePropertiesFile.exists()
+
+    signingConfigs {
+        if (useKeystore) {
+            val keystoreProperties = Properties()
+            keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
+
+    buildTypes {
+        getByName("debug") {
+            isDebuggable = true
+            isMinifyEnabled = false
+        }
+        getByName("release") {
+            // 启用代码混淆和压缩
+            isMinifyEnabled = true
+            // 启用资源压缩
+            isShrinkResources = true
+            // ProGuard 规则文件
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // 配置签名
+            if (useKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    // Lint 配置
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+        disable += listOf(
+            "ObsoleteLintCustomCheck",
+            "MissingTranslation",
+            "InvalidPackage"
+        )
+    }
+
+    // APK 分割配置 (可选，用于生成针对不同架构的APK)
+    splits {
+        abi {
+            isEnable = false  // 设为 true 可生成针对不同架构的APK
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = false
+        }
     }
 }
 

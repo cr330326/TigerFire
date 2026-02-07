@@ -27,3 +27,16 @@ node_modules/
 
 # 忽略测试报告
 test-reports/
+
+# 忽略签名配置文件
+keystore.properties
+*.keystore
+*.jks
+
+# 忽略APK文件
+*.apk
+*.aab
+
+# 忽略APK输出目录
+**/outputs/apk/
+**/outputs/bundle/
