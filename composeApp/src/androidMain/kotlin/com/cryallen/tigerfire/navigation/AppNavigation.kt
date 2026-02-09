@@ -9,13 +9,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.cryallen.tigerfire.factory.ViewModelFactory
-import com.cryallen.tigerfire.ui.collection.CollectionScreen
-import com.cryallen.tigerfire.ui.firestation.FireStationScreen
-import com.cryallen.tigerfire.ui.forest.ForestScreen
-import com.cryallen.tigerfire.ui.map.MapScreen
-import com.cryallen.tigerfire.ui.parent.ParentScreen
-import com.cryallen.tigerfire.ui.school.SchoolScreen
-import com.cryallen.tigerfire.ui.welcome.WelcomeScreen
+import com.cryallen.tigerfire.ui.collection.CollectionScreenSelector
+import com.cryallen.tigerfire.ui.firestation.FireStationScreenSelector
+import com.cryallen.tigerfire.ui.forest.ForestScreenSelector
+import com.cryallen.tigerfire.ui.map.MapScreenSelector
+import com.cryallen.tigerfire.ui.parent.ParentScreenSelector
+import com.cryallen.tigerfire.ui.school.SchoolScreenSelector
+import com.cryallen.tigerfire.ui.welcome.WelcomeScreenSelector
 
 /**
  * 应用导航框架
@@ -50,7 +50,7 @@ fun AppNavigation(
                 }
             }
 
-            WelcomeScreen(
+            WelcomeScreenSelector(
                 viewModel = viewModel,
                 onNavigateToMap = {
                     navController.navigate(Route.MAP) {
@@ -73,7 +73,7 @@ fun AppNavigation(
                 }
             }
 
-            MapScreen(
+            MapScreenSelector(
                 viewModel = viewModel,
                 onNavigateToFireStation = { navController.navigate(Route.FIRE_STATION) },
                 onNavigateToSchool = { navController.navigate(Route.SCHOOL) },
@@ -97,7 +97,7 @@ fun AppNavigation(
                 }
             }
 
-            FireStationScreen(
+            FireStationScreenSelector(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -115,7 +115,7 @@ fun AppNavigation(
                 }
             }
 
-            SchoolScreen(
+            SchoolScreenSelector(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -132,7 +132,7 @@ fun AppNavigation(
                 }
             }
 
-            ForestScreen(
+            ForestScreenSelector(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -149,7 +149,7 @@ fun AppNavigation(
                 }
             }
 
-            CollectionScreen(
+            CollectionScreenSelector(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -166,7 +166,7 @@ fun AppNavigation(
                 }
             }
 
-            ParentScreen(
+            ParentScreenSelector(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
             )

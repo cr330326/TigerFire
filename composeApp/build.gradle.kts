@@ -78,6 +78,11 @@ android {
     namespace = "com.cryallen.tigerfire"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
+    // 启用 BuildConfig 功能
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.cryallen.tigerfire"
         minSdk = libs.versions.android.minSdk.get().toInt()
@@ -91,6 +96,9 @@ android {
 
         // 启用矢量图支持
         vectorDrawables.useSupportLibrary = true
+
+        // BuildConfig 字段：是否使用优化后的 UI
+        buildConfigField("boolean", "IS_USE_OPTIMIZED_UI", "false")
     }
 
     packaging {
