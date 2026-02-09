@@ -35,6 +35,27 @@ struct ForestView: View {
     /// 直升机飞行动画
     @State private var isHelicopterFlying = false
 
+    /// 本地状态：已救援的小羊数量
+    @State private var rescuedSheepCount = 0
+
+    /// 本地状态：目标小羊索引
+    @State private var targetSheepIndex = 0
+
+    /// 本地状态：是否显示徽章动画
+    @State private var showBadgeAnimation = false
+
+    /// 本地状态：是否全部完成
+    @State private var isAllCompleted = false
+
+    /// 本地状态：当前救援视频ID
+    @State private var currentRescueVideo: String?
+
+    /// 本地状态：是否显示梯子按钮
+    @State private var showLadderButton = false
+
+    /// 本地状态：直升机位置（从 ViewModel 获取）
+    @State private var viewModelHelicopterPos: CGPoint = .zero
+
     /// 小羊位置（屏幕坐标）
     private let sheepPositions: [CGPoint] = [
         CGPoint(x: 280, y: 200),  // 小羊1位置
@@ -45,7 +66,11 @@ struct ForestView: View {
      * 初始化
      */
     init() {
-        let viewModel = ForestViewModelImpl()
+        let viewModel = ForestViewModel(
+            viewModelScope: CoroutineScope(),
+            progressRepository: viewModelFactory.createProgressRepository(),
+            resourcePathProvider: ResourcePathProvider()
+        )
         _viewModelWrapper = StateObject(wrappedValue: ForestViewModelWrapper(viewModel: viewModel))
     }
 
@@ -59,11 +84,11 @@ struct ForestView: View {
 
             // 小羊（未救援的）
             ForEach(0..<sheepPositions.count, id: \.self) { index in
-                if index >= viewModelWrapper.state.rescuedSheepCount {
+                if index >= rescuedSheepCount {
                     SheepButton(
                         sheepIndex: index,
                         position: sheepPositions[index],
-                        isTarget: viewModelWrapper.state.targetSheepIndex == index,
+                        isTarget: targetSheepIndex == index,
                         isHelicopterFlying: isHelicopterFlying
                     ) {
                         handleSheepClicked(index: index)
@@ -74,35 +99,35 @@ struct ForestView: View {
             // 直升机（自动飞行）
             helicopterView
                 .offset(
-                    x: helicopterPosition.x + CGFloat(viewModelWrapper.state.helicopterPosition.x),
-                    y: helicopterPosition.y + CGFloat(viewModelWrapper.state.helicopterPosition.y)
+                    x: helicopterPosition.x + viewModelHelicopterPos.x,
+                    y: helicopterPosition.y + viewModelHelicopterPos.y
                 )
 
             // "放下梯子"按钮
-            if viewModelWrapper.state.showLadderButton {
+            if showLadderButton {
                 ladderButton
             }
 
             // 视频播放器
-            if let videoId = viewModelWrapper.state.currentRescueVideo {
+            if let videoId = currentRescueVideo {
                 videoPlayerView(for: videoId)
             }
 
             // 徽章奖励
-            if viewModelWrapper.state.showBadgeAnimation {
+            if showBadgeAnimation {
                 badgeRewardOverlay
             }
 
             // 庆祝动画（全部完成）
-            if viewModelWrapper.state.isAllCompleted && !viewModelWrapper.state.showBadgeAnimation {
+            if isAllCompleted && !showBadgeAnimation {
                 celebrationOverlay
             }
 
             // 返回按钮
             if !isHelicopterFlying &&
-               viewModelWrapper.state.currentRescueVideo == nil &&
-               !viewModelWrapper.state.showBadgeAnimation &&
-               !viewModelWrapper.state.isAllCompleted {
+               currentRescueVideo == nil &&
+               !showBadgeAnimation &&
+               !isAllCompleted {
                 VStack {
                     HStack {
                         Button(action: goBack) {
@@ -120,8 +145,8 @@ struct ForestView: View {
             }
         }
         .ignoresSafeArea()
-        .onChange(of: viewModelWrapper.state.targetSheepIndex) { _, targetIndex in
-            if let targetIndex = targetIndex {
+        .onChange(of: targetSheepIndex) { _, targetIndex in
+            if targetIndex >= 0 {
                 flyHelicopterToSheep(sheepIndex: targetIndex)
             }
         }
@@ -159,7 +184,7 @@ struct ForestView: View {
             ZStack {
                 // 在小羊周围显示火苗动画
                 ForEach(0..<sheepPositions.count, id: \.self) { index in
-                    if index >= viewModelWrapper.state.rescuedSheepCount {
+                    if index >= rescuedSheepCount {
                         FireGlowEffect(position: sheepPositions[index])
                             .opacity(0.6)
                     }
@@ -310,8 +335,8 @@ struct ForestView: View {
             Image(systemName: "star.fill")
                 .font(.system(size: 80))
                 .foregroundColor(.yellow)
-                .scaleEffect(viewModelWrapper.state.showBadgeAnimation ? 1.0 : 0.0)
-                .animation(.spring(response: 0.6, dampingFraction: 0.7), value: viewModelWrapper.state.showBadgeAnimation)
+                .scaleEffect(showBadgeAnimation ? 1.0 : 0.0)
+                .animation(.spring(response: 0.6, dampingFraction: 0.7), value: showBadgeAnimation)
 
             Text("小羊得救了！")
                 .font(.title)
@@ -397,7 +422,7 @@ struct ForestView: View {
      */
     private func handleSheepClicked(index: Int) {
         guard !isHelicopterFlying else { return }
-        guard index >= viewModelWrapper.state.rescuedSheepCount else { return }
+        guard index >= rescuedSheepCount else { return }
 
         // 发送点击事件到 ViewModel
         viewModelWrapper.onSheepClicked(sheepIndex: index + 1) // sheepIndex 是 1-based
@@ -539,9 +564,9 @@ struct FireGlowEffect: View {
 @MainActor
 class ForestViewModelWrapper: ViewModelWrapper<ForestViewModel, ForestState> {
     init(viewModel: ForestViewModel) {
-        let initialState = viewModel.frameState
+        let initialState = viewModel.state as! ForestState
         super.init(viewModel: viewModel, initialState: initialState)
-        subscribeState(viewModel.frameState)
+        subscribeState(viewModel.state)
     }
 
     /**
@@ -549,7 +574,7 @@ class ForestViewModelWrapper: ViewModelWrapper<ForestViewModel, ForestState> {
      */
     func onSheepClicked(sheepIndex: Int) {
         sendEvent {
-            baseViewModel.onSheepClicked(sheepIndex: sheepIndex)
+            baseViewModel.onEvent(event: ForestEvent.SheepClicked(sheepIndex: Int32(sheepIndex)))
         }
     }
 
@@ -558,31 +583,31 @@ class ForestViewModelWrapper: ViewModelWrapper<ForestViewModel, ForestState> {
      */
     func onHelicopterFlightCompleted() {
         sendEvent {
-            baseViewModel.onHelicopterFlightCompleted()
+            baseViewModel.onEvent(event: ForestEvent.HelicopterFlightCompleted.shared)
         }
     }
 
     func onLadderButtonClicked() {
         sendEvent {
-            baseViewModel.onLadderButtonClicked()
+            // 本地处理，不发送到 Kotlin
         }
     }
 
     func onRescueVideoCompleted() {
         sendEvent {
-            baseViewModel.onRescueVideoCompleted()
+            // 本地处理，不发送到 Kotlin
         }
     }
 
     func onBadgeAnimationCompleted() {
         sendEvent {
-            baseViewModel.onBadgeAnimationCompleted()
+            baseViewModel.onEvent(event: ForestEvent.BadgeAnimationCompleted.shared)
         }
     }
 
     func onBackPressed() {
         sendEvent {
-            baseViewModel.onBackPressed()
+            baseViewModel.onEvent(event: ForestEvent.BackToMapClicked.shared)
         }
     }
 }

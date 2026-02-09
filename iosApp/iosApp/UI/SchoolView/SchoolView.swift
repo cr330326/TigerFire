@@ -35,7 +35,8 @@ struct SchoolView: View {
      * 初始化
      */
     init() {
-        let viewModel = SchoolViewModelImpl()
+        let scope = CoroutineScope()
+        let viewModel = SchoolViewModel(viewModelScope: scope, progressRepository: viewModelFactory.createProgressRepository(), resourcePathProvider: ResourcePathProvider())
         _viewModelWrapper = StateObject(wrappedValue: SchoolViewModelWrapper(viewModel: viewModel))
     }
 
@@ -317,9 +318,9 @@ struct SchoolView: View {
 @MainActor
 class SchoolViewModelWrapper: ViewModelWrapper<SchoolViewModel, SchoolState> {
     init(viewModel: SchoolViewModel) {
-        let initialState = viewModel.frameState
+        let initialState = viewModel.state as! SchoolState
         super.init(viewModel: viewModel, initialState: initialState)
-        subscribeState(viewModel.frameState)
+        subscribeState(viewModel.state)
     }
 
     /**
@@ -327,25 +328,25 @@ class SchoolViewModelWrapper: ViewModelWrapper<SchoolViewModel, SchoolState> {
      */
     func onPlayButtonClicked() {
         sendEvent {
-            baseViewModel.onPlayButtonClicked()
+            baseViewModel.onEvent(event: SchoolEvent.PlayButtonClicked.shared)
         }
     }
 
     func onVideoPlaybackCompleted() {
         sendEvent {
-            baseViewModel.onVideoPlaybackCompleted()
+            baseViewModel.onEvent(event: SchoolEvent.VideoPlaybackCompleted.shared)
         }
     }
 
     func onBadgeAnimationCompleted() {
         sendEvent {
-            baseViewModel.onBadgeAnimationCompleted()
+            baseViewModel.onEvent(event: SchoolEvent.BadgeAnimationCompleted.shared)
         }
     }
 
     func onBackPressed() {
         sendEvent {
-            baseViewModel.onBackPressed()
+            baseViewModel.onEvent(event: SchoolEvent.BackToMapClicked.shared)
         }
     }
 }

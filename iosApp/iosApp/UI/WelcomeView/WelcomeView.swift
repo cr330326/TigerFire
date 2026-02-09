@@ -32,8 +32,9 @@ struct WelcomeView: View {
      * 初始化
      */
     init() {
-        // 创建 Shared ViewModel
-        let viewModel = WelcomeViewModelImpl()
+        // 创建 Shared ViewModel 和 CoroutineScope
+        let scope = CoroutineScope()
+        let viewModel = WelcomeViewModel(viewModelScope: scope)
         _viewModelWrapper = StateObject(wrappedValue: WelcomeViewModelWrapper(viewModel: viewModel))
     }
 
@@ -157,13 +158,13 @@ class WelcomeViewModelWrapper: ViewModelWrapper<WelcomeViewModel, WelcomeState> 
      * - Parameter viewModel: Shared WelcomeViewModel 实例
      */
     init(viewModel: WelcomeViewModel) {
-        // 获取初始状态
-        let initialState = viewModel.frameState
+        // 获取初始状态 - 使用 state 而不是 frameState
+        let initialState = viewModel.state as! WelcomeState
 
         super.init(viewModel: viewModel, initialState: initialState)
 
         // 订阅状态流
-        subscribeState(viewModel.frameState)
+        subscribeState(viewModel.state)
 
         // 监听语音播放完成通知
         setupVoicePlaybackObserver()

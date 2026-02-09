@@ -21,7 +21,8 @@ struct MapView: View {
      * 初始化
      */
     init() {
-        let viewModel = MapViewModelImpl()
+        let scope = CoroutineScope()
+        let viewModel = MapViewModel(viewModelScope: scope, progressRepository: viewModelFactory.createProgressRepository())
         _viewModelWrapper = StateObject(wrappedValue: MapViewModelWrapper(viewModel: viewModel))
     }
 
@@ -68,10 +69,10 @@ struct MapView: View {
         HStack(spacing: 50) {
             // 消防站
             SceneIconButton(
-                scene: .firestation,
-                status: viewModelWrapper.state.sceneStatuses[.firestation] ?? .locked,
+                scene: .fireStation,
+                status: viewModelWrapper.state.sceneStatuses[.fireStation] ?? .locked,
                 onTap: {
-                    handleSceneTap(.firestation)
+                    handleSceneTap(.fireStation)
                 }
             )
 
@@ -132,12 +133,14 @@ struct MapView: View {
 
         // 根据场景类型导航
         switch scene {
-        case .firestation:
+        case .fireStation:
             coordinator.navigate(to: .firestation)
         case .school:
             coordinator.navigate(to: .school)
         case .forest:
             coordinator.navigate(to: .forest)
+        default:
+            break
         }
     }
 }
@@ -195,6 +198,8 @@ struct SceneIconButton: View {
             return sceneColor
         case .completed:
             return sceneColor
+        default:
+            return .gray
         }
     }
 
@@ -207,6 +212,8 @@ struct SceneIconButton: View {
             return .gray
         case .unlocked, .completed:
             return .white
+        default:
+            return .gray
         }
     }
 
@@ -215,12 +222,14 @@ struct SceneIconButton: View {
      */
     private var sceneColor: Color {
         switch scene {
-        case .firestation:
+        case .fireStation:
             return .red
         case .school:
             return .blue
         case .forest:
             return .green
+        default:
+            return .gray
         }
     }
 
@@ -229,12 +238,14 @@ struct SceneIconButton: View {
      */
     private var systemIcon: String {
         switch scene {
-        case .firestation:
+        case .fireStation:
             return "flame.fill"
         case .school:
             return "building.columns.fill"
         case .forest:
             return "tree.fill"
+        default:
+            return "star.fill"
         }
     }
 
@@ -243,12 +254,14 @@ struct SceneIconButton: View {
      */
     private var sceneDisplayName: String {
         switch scene {
-        case .firestation:
+        case .fireStation:
             return "消防站"
         case .school:
             return "学校"
         case .forest:
             return "森林"
+        default:
+            return "场景"
         }
     }
 }
@@ -261,26 +274,37 @@ struct SceneIconButton: View {
 @MainActor
 class MapViewModelWrapper: ViewModelWrapper<MapViewModel, MapState> {
     init(viewModel: MapViewModel) {
-        let initialState = viewModel.frameState
+        let initialState = viewModel.state as! MapState
         super.init(viewModel: viewModel, initialState: initialState)
-        subscribeState(viewModel.frameState)
+        subscribeState(viewModel.state)
     }
 
     func onSceneClicked(scene: SceneType) {
         sendEvent {
-            baseViewModel.onSceneClicked(scene: scene)
+            let kotlinScene: ComposeApp.SceneType
+            switch scene {
+            case .fireStation:
+                kotlinScene = ComposeApp.SceneType.fireStation
+            case .school:
+                kotlinScene = ComposeApp.SceneType.school
+            case .forest:
+                kotlinScene = ComposeApp.SceneType.forest
+            default:
+                kotlinScene = ComposeApp.SceneType.fireStation
+            }
+            baseViewModel.onEvent(event: MapEvent.SceneClicked(scene: kotlinScene))
         }
     }
 
     func onCollectionClicked() {
         sendEvent {
-            baseViewModel.onCollectionClicked()
+            baseViewModel.onEvent(event: MapEvent.CollectionClicked.shared)
         }
     }
 
     func onParentModeClicked() {
         sendEvent {
-            baseViewModel.onParentModeClicked()
+            baseViewModel.onEvent(event: MapEvent.ParentModeClicked.shared)
         }
     }
 }

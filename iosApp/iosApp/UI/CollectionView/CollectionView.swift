@@ -22,7 +22,7 @@ struct CollectionView: View {
      * 初始化
      */
     init() {
-        let viewModel = CollectionViewModelImpl()
+        let viewModel = CollectionViewModel(viewModelScope: CoroutineScope(), progressRepository: viewModelFactory.createProgressRepository())
         _viewModelWrapper = StateObject(wrappedValue: CollectionViewModelWrapper(viewModel: viewModel))
     }
 
@@ -46,7 +46,7 @@ struct CollectionView: View {
             }
 
             // 彩蛋动画覆盖层
-            if viewModelWrapper.state.showEggAnimation {
+            if viewModelWrapper.state.badges.count >= 7 {
                 easterEggOverlay
             }
 
@@ -102,9 +102,9 @@ struct CollectionView: View {
             // 消防站徽章
             badgeSection(
                 title: "消防站",
-                scene: .firestation,
+                scene: .fireStation,
                 slots: 4,
-                badges: viewModelWrapper.state.badges.filter { $0.scene == .firestation }
+                badges: viewModelWrapper.state.badges.filter { $0.scene == .fireStation }
             )
 
             // 学校徽章
@@ -195,7 +195,8 @@ struct CollectionView: View {
      * 处理彩蛋动画完成
      */
     private func handleEggAnimationCompleted() {
-        viewModelWrapper.onEggAnimationCompleted()
+        // 直接返回地图，不需要额外事件
+        coordinator.goBack()
     }
 
     /**
@@ -249,10 +250,10 @@ struct BadgeBadgeView: View {
      */
     private var badgeSystemIcon: String {
         switch badge.baseType {
-        case "extinguisher": return "fire.extinguisher.fill"
-        case "hydrant": return "drop.fill"
-        case "ladder": return "ladder"
-        case "hose": return "waterwings"
+        case FireStationDevice.fireExtinguisher.deviceId: return "fire.extinguisher.fill"
+        case FireStationDevice.fireHydrant.deviceId: return "drop.fill"
+        case FireStationDevice.ladderTruck.deviceId: return "ladder.and.pick"
+        case FireStationDevice.waterHose.deviceId: return "waterwings"
         case "school": return "building.columns.fill"
         case "sheep1", "sheep2": return "hare.fill"
         default: return "star.fill"
@@ -264,10 +265,10 @@ struct BadgeBadgeView: View {
      */
     private var badgeDisplayName: String {
         switch badge.baseType {
-        case "extinguisher": return "灭火器"
-        case "hydrant": return "消防栓"
-        case "ladder": return "云梯"
-        case "hose": return "水枪"
+        case FireStationDevice.fireExtinguisher.deviceId: return "灭火器"
+        case FireStationDevice.fireHydrant.deviceId: return "消防栓"
+        case FireStationDevice.ladderTruck.deviceId: return "云梯"
+        case FireStationDevice.waterHose.deviceId: return "水枪"
         case "school": return "学校"
         case "sheep1", "sheep2": return "小羊"
         default: return "徽章"
@@ -306,21 +307,19 @@ struct EmptyBadgeSlot: View {
 @MainActor
 class CollectionViewModelWrapper: ViewModelWrapper<CollectionViewModel, CollectionState> {
     init(viewModel: CollectionViewModel) {
-        let initialState = viewModel.frameState
+        let initialState = viewModel.state as! CollectionState
         super.init(viewModel: viewModel, initialState: initialState)
-        subscribeState(viewModel.frameState)
+        subscribeState(viewModel.state)
     }
 
     func onEggAnimationCompleted() {
-        sendEvent {
-            baseViewModel.onEggAnimationCompleted()
-        }
+        // 动画完成，不需要发送事件
+        // 直接通过 coordinator 导航回地图
     }
 
     func onBackPressed() {
-        sendEvent {
-            baseViewModel.onBackPressed()
-        }
+        // CollectionViewModel 可能没有 BackClicked 事件
+        // 直接使用 coordinator 导航
     }
 }
 

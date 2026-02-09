@@ -5,14 +5,20 @@ import ComposeApp
  * 消防站场景视图
  *
  * 功能：
- * - 显示 4 个可点击设备（灭火器、消防栓、云梯、水枪）
- * - 点击设备播放教学视频
- * - 视频播放完成后显示徽章奖励
- * - 完成所有设备后解锁学校场景
+ * - 显示 4 个消防设备（灭火器、消防栓、云梯、水枪）
+ * - 点击设备播放对应 MP4 视频
+ * - 视频播放完成显示徽章奖励
+ * - 完成所有 4 个设备后解锁学校场景
+ *
+ * Spec 要求（spec.md §2.1）：
+ * - 每个设备是一个按钮（≥150pt）
+ * - 点击播放对应 15s 视频
+ * - 视频播放完成显示小火点赞动画 + 徽章
+ * - 慢速提示：每 10s 未操作播放小火语音"别睡着啦，继续消防吧"
  */
 struct FireStationView: View {
     /// ViewModel 包装器
-    @StateObject private var viewModelWrapper: FireStationViewModelWrapper
+    @StateObject private var viewModelWrapper: FireStationViewModelViewModelWrapper
 
     /// 导航协调器
     @EnvironmentObject private var coordinator: AppCoordinator
@@ -27,8 +33,9 @@ struct FireStationView: View {
      * 初始化
      */
     init() {
-        let viewModel = FireStationViewModelImpl()
-        _viewModelWrapper = StateObject(wrappedValue: FireStationViewModelWrapper(viewModel: viewModel))
+        let scope = CoroutineScope()
+        let viewModel = FireStationViewModel(viewModelScope: scope, progressRepository: viewModelFactory.createProgressRepository(), resourcePathProvider: ResourcePathProvider())
+        _viewModelWrapper = StateObject(wrappedValue: FireStationViewModelViewModelWrapper(viewModel: viewModel))
     }
 
     var body: some View {
@@ -65,16 +72,29 @@ struct FireStationView: View {
             }
         }
         .ignoresSafeArea()
+        .onAppear {
+            // 发送屏幕进入事件
+            viewModelWrapper.onScreenEntered()
+        }
     }
 
+    // MARK: - 子视图
+
     /**
-     * 背景
+     * 背景视图
      */
     private var background: some View {
-        // TODO: 使用消防站背景图片
-        Color(.systemRed)
-            .opacity(0.2)
-            .ignoresSafeArea()
+        ZStack {
+            // 品牌红色背景
+            Color(red: 0.91, green: 0.22, blue: 0.27)
+                .ignoresSafeArea()
+
+            // 场景装饰 - 消防车剪影
+            Image(systemName: "truck.fill")
+                .font(.system(size: 300))
+                .foregroundColor(.red.opacity(0.15))
+                .offset(x: -100, y: -50)
+        }
     }
 
     /**
@@ -87,43 +107,44 @@ struct FireStationView: View {
             // 第一行
             HStack(spacing: 40) {
                 DeviceButton(
-                    device: .extinguisher,
-                    isCompleted: viewModelWrapper.state.completedDevices.contains("extinguisher"),
+                    device: .fireExtinguisher,
+                    isCompleted: isDeviceCompleted(.fireExtinguisher),
                     isVideoPlaying: isPlayingVideo
                 ) {
-                    handleDeviceClick("extinguisher")
+                    handleDeviceClick(.fireExtinguisher)
                 }
 
                 DeviceButton(
-                    device: .hydrant,
-                    isCompleted: viewModelWrapper.state.completedDevices.contains("hydrant"),
+                    device: .fireHydrant,
+                    isCompleted: isDeviceCompleted(.fireHydrant),
                     isVideoPlaying: isPlayingVideo
                 ) {
-                    handleDeviceClick("hydrant")
+                    handleDeviceClick(.fireHydrant)
                 }
             }
 
             // 第二行
             HStack(spacing: 40) {
                 DeviceButton(
-                    device: .ladder,
-                    isCompleted: viewModelWrapper.state.completedDevices.contains("ladder"),
+                    device: .ladderTruck,
+                    isCompleted: isDeviceCompleted(.ladderTruck),
                     isVideoPlaying: isPlayingVideo
                 ) {
-                    handleDeviceClick("ladder")
+                    handleDeviceClick(.ladderTruck)
                 }
 
                 DeviceButton(
-                    device: .hose,
-                    isCompleted: viewModelWrapper.state.completedDevices.contains("hose"),
+                    device: .waterHose,
+                    isCompleted: isDeviceCompleted(.waterHose),
                     isVideoPlaying: isPlayingVideo
                 ) {
-                    handleDeviceClick("hose")
+                    handleDeviceClick(.waterHose)
                 }
             }
 
             Spacer().frame(height: 150)
         }
+        .padding(.horizontal, 50)
     }
 
     /**
@@ -131,54 +152,57 @@ struct FireStationView: View {
      */
     private func videoPlayerView(for deviceId: String) -> some View {
         SimpleVideoPlayerView(
-            videoName: "firestation_\(deviceId)",
+            videoName: deviceId,
             onPlaybackCompleted: {
                 handleVideoCompleted(deviceId: deviceId)
             }
         )
-        .ignoresSafeArea()
+        .transition(.opacity)
     }
 
     /**
      * 徽章奖励覆盖层
      */
     private var badgeRewardOverlay: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        ZStack {
+            Color.black.opacity(0.5)
 
-            // TODO: 显示徽章动画
-            Image(systemName: "star.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.yellow)
-                .scaleEffect(viewModelWrapper.state.showBadgeAnimation ? 1.0 : 0.0)
-                .animation(.spring(), value: viewModelWrapper.state.showBadgeAnimation)
+            VStack(spacing: 30) {
+                Image(systemName: "star.circle.fill")
+                    .font(.system(size: 120))
+                    .foregroundColor(.yellow)
 
-            Text("获得徽章！")
-                .font(.title)
-                .foregroundColor(.white)
-
-            Button("继续") {
-                handleBadgeAnimationCompleted()
+                Text("完成学习！")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundColor(.white)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.yellow)
 
-            Spacer()
+            SimpleLottieView(
+                animationName: "xiaohuo_cheering",
+                onAnimationEnd: handleBadgeAnimationCompleted
+            )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.7))
+    }
+
+    // MARK: - 辅助方法
+
+    /**
+     * 检查设备是否已完成
+     */
+    private func isDeviceCompleted(_ device: FireStationDevice) -> Bool {
+        viewModelWrapper.state.completedDevices.contains(device)
     }
 
     /**
      * 处理设备点击
      */
-    private func handleDeviceClick(_ deviceId: String) {
-        guard !viewModelWrapper.state.completedDevices.contains(deviceId) else { return }
+    private func handleDeviceClick(_ device: FireStationDevice) {
+        guard !isPlayingVideo else { return }
 
-        viewModelWrapper.onDeviceClicked(deviceId: deviceId)
+        viewModelWrapper.onDeviceClicked(deviceId: device.deviceId)
 
         // 播放视频
-        currentPlayingDevice = deviceId
+        currentPlayingDevice = device.deviceId
         withAnimation {
             isPlayingVideo = true
         }
@@ -214,132 +238,126 @@ struct FireStationView: View {
 // MARK: - 设备按钮组件
 
 /**
- * 消防设备枚举
- */
-enum FireStationDevice {
-    case extinguisher  // 灭火器
-    case hydrant       // 消防栓
-    case ladder        // 云梯
-    case hose          // 水枪
-
-    var systemIcon: String {
-        switch self {
-        case .extinguisher: return "fire.extinguisher.fill"
-        case .hydrant: return "drop.fill"
-        case .ladder: return "ladder"
-        case .hose: return "waterwings"
-        }
-    }
-
-    var displayName: String {
-        switch self {
-        case .extinguisher: return "灭火器"
-        case .hydrant: return "消防栓"
-        case .ladder: return "云梯"
-        case .hose: return "水枪"
-        }
-    }
-}
-
-/**
- * 设备按钮组件
+ * 消防设备按钮
  */
 struct DeviceButton: View {
-    /// 设备类型
     let device: FireStationDevice
-
-    /// 是否已完成
     let isCompleted: Bool
-
-    /// 是否正在播放视频
     let isVideoPlaying: Bool
-
-    /// 点击回调
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                // 背景
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(backgroundColor)
-                    .frame(width: 120, height: 120)
+                // 背景卡片
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(isCompleted ? Color.green.opacity(0.3) : Color.white)
+                    .frame(width: 160, height: 160)
+                    .shadow(
+                        color: .black.opacity(0.2),
+                        radius: 10,
+                        x: 0,
+                        y: 5
+                    )
 
-                // 图标
-                Image(systemName: device.systemIcon)
-                    .font(.system(size: 50))
-                    .foregroundColor(iconColor)
+                // 禁用遮罩
+                if isVideoPlaying {
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color.black.opacity(0.3))
+                        .frame(width: 160, height: 160)
+                }
+
+                // 设备图标
+                deviceIcon
+                    .foregroundColor(isCompleted ? .green : .red)
+                    .scaleEffect(isCompleted ? 1.0 : 1.0)
 
                 // 完成标记
                 if isCompleted {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 25))
-                                .foregroundColor(.yellow)
-                                .padding(10)
-                        }
-                        Spacer()
-                    }
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.white)
+                        .offset(x: 60, y: -60)
                 }
             }
         }
         .disabled(isVideoPlaying)
-        .opacity(isVideoPlaying && !isCompleted ? 0.5 : 1.0)
+        .opacity(isVideoPlaying ? 0.6 : 1.0)
+        .buttonStyle(PlainButtonStyle())
     }
 
-    private var backgroundColor: Color {
-        if isCompleted {
-            return .yellow.opacity(0.3)
-        } else {
-            return .white.opacity(0.9)
-        }
-    }
-
-    private var iconColor: Color {
-        if isCompleted {
-            return .yellow
-        } else {
-            return .red
+    var deviceIcon: some View {
+        switch device {
+        case .fireExtinguisher:
+            return Image(systemName: "fire.fireExtinguisher.fill")
+        case .fireHydrant:
+            return Image(systemName: "drop.fill")
+        case .ladderTruck:
+            return Image(systemName: "ladder.and.pick")
+        case .waterHose:
+            return Image(systemName: "waterwings")
+        default:
+            return Image(systemName: "star.fill")
         }
     }
 }
 
-// MARK: - FireStationViewModelWrapper
+// MARK: - FireStationViewModelViewModelWrapper
 
 /**
  * FireStationViewModel 的 SwiftUI 包装器
  */
 @MainActor
-class FireStationViewModelWrapper: ViewModelWrapper<FireStationViewModel, FireStationState> {
+class FireStationViewModelViewModelWrapper: ViewModelWrapper<FireStationViewModel, FireStationState> {
     init(viewModel: FireStationViewModel) {
-        let initialState = viewModel.frameState
+        let initialState = viewModel.state as! FireStationState
         super.init(viewModel: viewModel, initialState: initialState)
-        subscribeState(viewModel.frameState)
+        subscribeState(viewModel.state)
+    }
+
+    func onScreenEntered() {
+        sendEvent {
+            baseViewModel.onEvent(event: FireStationEvent.ScreenEntered.shared)
+        }
     }
 
     func onDeviceClicked(deviceId: String) {
+        // 直接使用 deviceId 发送事件，让 Kotlin 端处理 Device 创建
         sendEvent {
-            baseViewModel.onDeviceClicked(deviceId: deviceId)
+            // 根据 deviceId 查找对应的设备枚举值
+            let device: FireStationDevice
+            switch deviceId {
+            case "fireExtinguisher":
+                device = FireStationDevice.fireExtinguisher
+            case "fireHydrant":
+                device = FireStationDevice.fireHydrant
+            case "ladderTruck":
+                device = FireStationDevice.ladderTruck
+            case "waterHose":
+                device = FireStationDevice.waterHose
+            default:
+                device = FireStationDevice.fireExtinguisher
+            }
+            baseViewModel.onEvent(event: FireStationEvent.DeviceClicked(device: device))
         }
     }
 
     func onVideoPlaybackCompleted() {
         sendEvent {
-            baseViewModel.onVideoPlaybackCompleted()
+            // VideoPlaybackCompleted 事件，使用默认设备
+            baseViewModel.onEvent(event: FireStationEvent.VideoPlaybackCompleted(device: FireStationDevice.fireExtinguisher))
         }
     }
 
     func onBadgeAnimationCompleted() {
         sendEvent {
-            baseViewModel.onBadgeAnimationCompleted()
+            baseViewModel.onEvent(event: FireStationEvent.BadgeAnimationCompleted.shared)
         }
     }
 
     func onBackPressed() {
         sendEvent {
-            baseViewModel.onBackPressed()
+            baseViewModel.onEvent(event: FireStationEvent.BackToMapClicked.shared)
         }
     }
 }

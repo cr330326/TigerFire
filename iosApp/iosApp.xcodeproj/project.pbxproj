@@ -8,11 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		8A87971A2F3453AC008F98EF /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 8A8797192F3453AC008F98EF /* Lottie */; };
-		8A87971C2F3453AC008F98EF /* Lottie-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 8A87971B2F3453AC008F98EF /* Lottie-Dynamic */; };
+		TF1SQLite /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = TF1SQLiteRef /* libsqlite3.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		840C5D92E4C3190E62D53CA7 /* TigerFire.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TigerFire.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		TF1SQLiteRef /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -47,7 +48,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8A87971A2F3453AC008F98EF /* Lottie in Frameworks */,
-				8A87971C2F3453AC008F98EF /* Lottie-Dynamic in Frameworks */,
+				TF1SQLite /* libsqlite3.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,7 +94,6 @@
 			name = iosApp;
 			packageProductDependencies = (
 				8A8797192F3453AC008F98EF /* Lottie */,
-				8A87971B2F3453AC008F98EF /* Lottie-Dynamic */,
 			);
 			productName = iosApp;
 			productReference = 840C5D92E4C3190E62D53CA7 /* TigerFire.app */;
@@ -397,11 +397,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8A8797182F3453AC008F98EF /* XCRemoteSwiftPackageReference "lottie-ios" */;
 			productName = Lottie;
-		};
-		8A87971B2F3453AC008F98EF /* Lottie-Dynamic */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 8A8797182F3453AC008F98EF /* XCRemoteSwiftPackageReference "lottie-ios" */;
-			productName = "Lottie-Dynamic";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

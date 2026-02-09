@@ -31,15 +31,12 @@ struct LottieView: UIViewRepresentable {
         animationView.loopMode = loopMode
         animationView.contentMode = .scaleAspectFit
 
-        // 设置动画播放代理
-        animationView.animationCompletion = { finished in
+        // 使用 play(completion:) 方法处理完成回调
+        animationView.play { finished in
             if finished {
                 onAnimationEnd?()
             }
         }
-
-        // 开始播放
-        animationView.play()
 
         return animationView
     }

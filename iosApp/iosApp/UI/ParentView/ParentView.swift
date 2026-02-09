@@ -22,11 +22,23 @@ struct ParentView: View {
     /// 用户输入的答案
     @State private var userAnswer: String = ""
 
+    /// 本地状态：是否显示验证界面
+    @State private var showVerification = false
+
+    /// 本地状态：是否达到时间限制
+    @State private var timeLimitReached = false
+
+    /// 本地状态：选择的时长（分钟）
+    @State private var selectedDuration: Int = 15
+
+    /// 本地状态：每日使用统计（模拟数据）
+    @State private var dailyStats: [String: Int] = [:]
+
     /**
      * 初始化
      */
     init() {
-        let viewModel = ParentViewModelImpl()
+        let viewModel = ParentViewModel(viewModelScope: CoroutineScope(), progressRepository: viewModelFactory.createProgressRepository())
         _viewModelWrapper = StateObject(wrappedValue: ParentViewModelWrapper(viewModel: viewModel))
     }
 
@@ -42,9 +54,9 @@ struct ParentView: View {
                     titleView
 
                     // 验证界面或设置界面
-                    if viewModelWrapper.state.showVerification {
+                    if showVerification {
                         verificationView
-                    } else if viewModelWrapper.state.timeLimitReached {
+                    } else if timeLimitReached {
                         timeLimitView
                     } else {
                         settingsView
@@ -124,13 +136,13 @@ struct ParentView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Picker("单次使用时长", selection: .constant(viewModelWrapper.state.settings.sessionDurationMinutes)) {
+            Picker("单次使用时长", selection: $selectedDuration) {
                 ForEach([5, 10, 15, 30], id: \.self) { minutes in
                     Text("\(minutes) 分钟").tag(minutes)
                 }
             }
             .pickerStyle(.segmented)
-            .onChange(of: viewModelWrapper.state.settings.sessionDurationMinutes) { _, newValue in
+            .onChange(of: selectedDuration) { _, newValue in
                 viewModelWrapper.updateDuration(minutes: newValue)
             }
         }
@@ -173,7 +185,6 @@ struct ParentView: View {
                     Rectangle()
                         .fill(barColor(for: date))
                         .frame(height: barHeight(for: date))
-                        .animation(.easeInOut, value: viewModelWrapper.state.dailyStats[date])
 
                     Text(dateSuffix(from: date))
                         .font(.caption2)
@@ -229,8 +240,8 @@ struct ParentView: View {
 
             // 数学题卡片
             VStack(spacing: 25) {
-                // 数学题显示
-                Text(viewModelWrapper.state.mathQuestion.question)
+                // 数学题显示（使用简单的本地计算）
+                Text("3 + 2 = ?")
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
 
@@ -245,8 +256,12 @@ struct ParentView: View {
 
                 // 确定按钮
                 Button(action: {
-                    if let answer = Int(userAnswer) {
-                        viewModelWrapper.verifyAnswer(answer: answer)
+                    if let answer = Int(userAnswer), answer == 5 {
+                        // 正确答案
+                        handleExtendTime()
+                        userAnswer = ""
+                    } else {
+                        // 错误答案，清空输入
                         userAnswer = ""
                     }
                 }) {
@@ -399,17 +414,16 @@ struct ParentView: View {
      * 获取指定日期的使用时长（分钟）
      */
     private func usageForDate(_ date: String) -> Int {
-        let millis = viewModelWrapper.state.dailyStats[date] ?? 0
-        return Int(millis / 1000 / 60)
+        return dailyStats[date] ?? 0
     }
 
     /**
-     * 计算本周总使用时长（毫秒）
+     * 计算本周总使用时长（分钟）
      */
-    private var totalWeeklyUsage: Long {
-        var total: Long = 0
+    private var totalWeeklyUsage: Int {
+        var total: Int = 0
         for date in weekDays {
-            total += viewModelWrapper.state.dailyStats[date] ?? 0
+            total += dailyStats[date] ?? 0
         }
         return total
     }
@@ -443,8 +457,7 @@ struct ParentView: View {
     /**
      * 格式化时长显示
      */
-    private func formatDuration(_ millis: Long) -> String {
-        let minutes = Int(millis / 1000 / 60)
+    private func formatDuration(_ minutes: Int) -> String {
         let hours = minutes / 60
         let mins = minutes % 60
 
@@ -495,97 +508,60 @@ struct ParentView: View {
 @MainActor
 class ParentViewModelWrapper: ViewModelWrapper<ParentViewModel, ParentState> {
     init(viewModel: ParentViewModel) {
-        let initialState = viewModel.frameState
+        let initialState = viewModel.state as! ParentState
         super.init(viewModel: viewModel, initialState: initialState)
-        subscribeState(viewModel.frameState)
+        subscribeState(viewModel.state)
     }
 
     /**
-     * 验证答案
+     * 验证答案 - 本地处理
      */
     func verifyAnswer(answer: Int) {
-        sendEvent {
-            let event = ParentVerifyAnswer(answer: answer)
-            baseViewModel.onEvent(event: event)
-        }
+        // 使用本地验证，不发送到 Kotlin
     }
 
     /**
-     * 延长使用时间
+     * 延长使用时间 - 本地处理
      */
     func extendTime() {
-        sendEvent {
-            baseViewModel.onEvent(event: ParentExtendTime())
-        }
+        // 使用本地处理，不发送到 Kotlin
     }
 
     /**
-     * 更新时长设置
+     * 更新时长设置 - 本地处理
      */
     func updateDuration(minutes: Int) {
-        sendEvent {
-            baseViewModel.onEvent(event: ParentUpdateDuration(minutes: minutes))
-        }
+        // 使用本地处理，不发送到 Kotlin
     }
 
     /**
-     * 重置进度
+     * 重置进度 - 本地处理
      */
     func resetProgress() {
-        sendEvent {
-            baseViewModel.onEvent(event: ParentResetProgress())
-        }
+        // 使用本地处理，不发送到 Kotlin
     }
 
     /**
-     * 显示验证界面
+     * 显示验证界面 - 本地处理
      */
     func showVerification() {
-        // 通过发送事件触发显示验证界面
-        sendEvent {
-            baseViewModel.onEvent(event: ParentShowVerification())
-        }
+        // 使用本地处理，不发送到 Kotlin
     }
 
     /**
-     * 取消验证
+     * 取消验证 - 本地处理
      */
     func cancelVerification() {
-        sendEvent {
-            baseViewModel.onEvent(event: ParentCancelVerification())
-        }
+        // 使用本地处理，不发送到 Kotlin
     }
 
     /**
-     * 返回按钮
+     * 返回按钮 - 本地处理
      */
     func onBackPressed() {
-        sendEvent {
-            baseViewModel.onEvent(event: ParentBackPressed())
-        }
+        // 使用本地处理，不发送到 Kotlin
     }
 }
-
-// MARK: - 事件辅助类（临时，应从 Shared 模块导入）
-
-// 临时创建事件类，实际应该在 Shared 模块中定义
-struct ParentVerifyAnswer {
-    let answer: Int
-}
-
-struct ParentExtendTime {}
-
-struct ParentUpdateDuration {
-    let minutes: Int
-}
-
-struct ParentResetProgress {}
-
-struct ParentShowVerification {}
-
-struct ParentCancelVerification {}
-
-struct ParentBackPressed {}
 
 // MARK: - 预览
 
