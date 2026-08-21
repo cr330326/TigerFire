@@ -1,75 +1,76 @@
 # UI 优化文件完整性检查报告
 
-## 文件状态概览
+> **状态：已解决（历史记录）**
+> 本文档最初记录的是优化版 UI 文件尚未补全时的状态。相关文件已在后续提交中全部补齐，
+> 下方保留了当前实况与原始记录，仅供追溯。
 
-| 文件 | 当前行数 | 原始行数 | 完整度 | 状态 |
+---
+
+## 当前状态（最新）
+
+7 个场景的**原始版与优化版均已实现完毕**，全部通过 `XxxScreenSelector` 按
+`BuildConfig.IS_USE_OPTIMIZED_UI` 分发。
+
+| 场景 | 原始版 | 优化版 | 选择器 | 状态 |
+|------|--------|--------|--------|------|
+| Welcome | `WelcomeScreen.kt` (349 行) | `WelcomeScreenOptimized.kt` (510 行) | ✅ | ✅ 完成 |
+| Map | `MapScreen.kt` (1729 行) | `MapScreenOptimized.kt` (1479 行) | ✅ | ✅ 完成 |
+| FireStation | `FireStationScreen.kt` (1494 行) | `FireStationScreenOptimized.kt` (1633 行) | ✅ | ✅ 完成 |
+| School | `SchoolScreen.kt` (1094 行) | `SchoolScreenOptimized.kt` (1779 行) | ✅ | ✅ 完成 |
+| Forest | `ForestScreen.kt` (1478 行) | `ForestScreenOptimized.kt` (1717 行) | ✅ | ✅ 完成 |
+| Collection | `CollectionScreen.kt` (1340 行) | `CollectionScreenOptimized.kt` (1347 行) | ✅ | ✅ 完成 |
+| Parent | `ParentScreen.kt` (2350 行) | `ParentScreenOptimized.kt` (2878 行) | ✅ | ✅ 完成 |
+
+文件位置：`composeApp/src/androidMain/kotlin/com/cryallen/tigerfire/ui/<scene>/`
+
+### 当前开关配置
+
+```kotlin
+// composeApp/build.gradle.kts
+buildConfigField("boolean", "IS_USE_OPTIMIZED_UI", "false")  // 默认运行原始版
+```
+
+默认仍为**原始版**。切换到优化版只需将该值改为 `"true"` 并重新构建，
+随后用 `./scripts/verify_ui_switch.sh` 校验实际生效的版本。
+
+相关文档：
+- [`UI_OPTIMIZATION_SWITCH_GUIDE.md`](UI_OPTIMIZATION_SWITCH_GUIDE.md) — 切换机制详解
+- [`QUICK_START_UI_SWITCH.md`](QUICK_START_UI_SWITCH.md) — 快速上手
+- [`UI_UX_IMPLEMENTATION_COMPLETE.md`](UI_UX_IMPLEMENTATION_COMPLETE.md) — 优化实现完成报告
+- [`E2E_TEST_OPTIMIZED_FEATURES.md`](E2E_TEST_OPTIMIZED_FEATURES.md) — 优化版端到端测试
+
+---
+
+## 原始记录（已过时，保留供追溯）
+
+以下内容记录了补全前的中间状态，**不代表当前代码**。
+
+### 当时的文件状态
+
+| 文件 | 当时行数 | 目标行数 | 完整度 | 状态 |
 |------|----------|----------|--------|------|
 | CollectionScreenOptimized.kt | ~400 | 1340 | 30% | ⚠️ 不完整 |
 | WelcomeScreenOptimized.kt | ~461 | ~800 | 58% | ⚠️ 不完整 |
 | MapScreenOptimized.kt | ~976 | ~1500 | 65% | ⚠️ 不完整 |
 
-## 缺失的关键组件
+### 当时缺失的关键组件
 
-### CollectionScreenOptimized.kt
-主要缺失以下组件：
-1. ❌ CollectionTopBarOptimized - 顶部工具栏
-2. ❌ CollectionTitleOptimized - 标题区域
-3. ⚠️ CollectionStatsCardOptimized - 统计卡片（部分存在但不完整）
-4. ❌ BadgeListOptimized - 徽章列表
-5. ❌ EmptyStateContentOptimized - 空状态内容
-6. ❌ SceneHintCardOptimized - 场景提示卡片
-7. ❌ SceneBadgeSectionOptimized - 场景徽章分组
-8. ❌ BadgeCardOptimized - 徽章卡片
-9. ❌ EmptyBadgeSlotOptimized - 空徽章槽位
-10. ❌ BadgeDetailDialogOptimized - 徽章详情对话框
-11. ❌ CompletionCelebrationOverlayOptimized - 完成庆祝覆盖层
+**CollectionScreenOptimized.kt**：`CollectionTopBarOptimized`、`CollectionTitleOptimized`、
+`CollectionStatsCardOptimized`、`BadgeListOptimized`、`EmptyStateContentOptimized`、
+`SceneHintCardOptimized`、`SceneBadgeSectionOptimized`、`BadgeCardOptimized`、
+`EmptyBadgeSlotOptimized`、`BadgeDetailDialogOptimized`、`CompletionCelebrationOverlayOptimized`
 
-### WelcomeScreenOptimized.kt
-主要缺失：
-1. ❌ 多个 Enhanced* 组件
-2. ❌ OptimizedSceneIcon 组件
-3. ⚠️ 粒子效果系统不完整
+**WelcomeScreenOptimized.kt**：多个 `Enhanced*` 组件、`OptimizedSceneIcon`、粒子效果系统
 
-### MapScreenOptimized.kt
-主要缺失：
-1. ❌ AvatarCharacter - 角色头像组件
-2. ❌ TimeReminderDialog - 时间提醒对话框
-3. ⚠️ 部分场景图标组件需要优化
+**MapScreenOptimized.kt**：`AvatarCharacter`、`TimeReminderDialog`、部分场景图标组件
 
-## 建议的解决方案
+### 当时给出的三个方案
 
-### 方案 1：使用原始版本（推荐当前使用）
-将 `IS_USE_OPTIMIZED_UI` 设置为 `false`，使用原始版本：
-- ✅ 功能完整
-- ✅ 稳定可靠
-- ⚠️ 没有优化的动画效果
-
-### 方案 2：渐进式补全
-逐个补全优化文件：
-1. 首先补全 CollectionScreenOptimized.kt（约需添加 900+ 行代码）
-2. 然后补全 WelcomeScreenOptimized.kt（约需添加 350+ 行代码）
-3. 最后补全 MapScreenOptimized.kt（约需添加 500+ 行代码）
-
-### 方案 3：创建简化版优化文件
-创建功能完整但简化版本的优化文件：
-- 保留核心优化功能（动画、触觉反馈等）
-- 移除部分复杂的视觉效果
-- 代码量适中，易于维护
-
-## 当前配置状态
-
-```kotlin
-// composeApp/build.gradle.kts
-buildConfigField("boolean", "IS_USE_OPTIMIZED_UI", "false") // 当前使用原始版本
-```
-
-## 下一步行动建议
-
-1. **短期**：继续使用原始版本，确保功能稳定
-2. **中期**：选择方案2或方案3，逐步完善优化版本
-3. **长期**：完全切换到优化版本，提供更好的用户体验
+1. 使用原始版本（当时采用）—— 功能完整、稳定，但缺少优化动效
+2. 渐进式补全优化文件 —— **最终采用的路径**
+3. 创建简化版优化文件
 
 ---
 
-*报告生成时间：2024年*
-*文件版本：v1.0*
+*原始报告生成时间：2024 年*
+*状态更新：优化文件已全部补全，本文档转为历史记录*
