@@ -21,6 +21,8 @@ node_modules/
 
 # 忽略所有用户本地的Claude Code配置
 .claude/settings.local.json
+.claude/skills
+.agents
 
 # 忽略IDE和系统文件
 .vscode/
