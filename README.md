@@ -1,3 +1,5 @@
+
+
 # TigerFire (老虎消防车)
 
 > 学前儿童消防安全教育应用 · Kotlin Multiplatform Mobile
@@ -474,7 +476,7 @@ defaultConfig {
 
 ## 数据持久化
 
-SQLDelight 2.1.0，数据库名 `TigerFireDatabase`，生成包 `com.cryallen.tigerfire.database`。Schema 位于 `composeApp/src/commonMain/sqldelight/com/cryallen/tigerfire/database/`。
+SQLDelight 2.1.0，数据库文件名为 `TigerFire.db`（生成类名为 `TigerFireDatabase`），生成包 `com.cryallen.tigerfire.database`。Schema 位于 `composeApp/src/commonMain/sqldelight/com/cryallen/tigerfire/database/`。
 
 三张表均采用**单行表设计**（`id` 恒为 1）：
 
